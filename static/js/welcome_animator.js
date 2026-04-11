@@ -1,6 +1,4 @@
-/**
- * welcome_animator.js - Quantum Flux & Entanglement Hero Animation
- */
+import { subscribe } from './state.js';
 
 export class WelcomeAnimator {
     constructor(canvasId) {
@@ -26,18 +24,27 @@ export class WelcomeAnimator {
             this.mouse.y = -1000;
         });
         
-        this.colors = {
-            primary: '#0f172a',    // Midnight Navy
-            secondary: '#b59a5b',  // Scientific Gold
-            accent: '#cbd5e1',     // Soft Slate
-            bg: '#f8f9fa',         // Parchment (matches --clr-paper)
-            glow: 'rgba(181, 154, 91, 0.2)',
-            link: 'rgba(15, 23, 42, 0.05)'
-        };
+        this.colors = {};
+        this.refreshColors();
+        
+        subscribe('themeChanged', () => this.refreshColors());
 
         this.initParticles();
         this.start();
     }
+
+    refreshColors() {
+        const style = getComputedStyle(document.body);
+        const isNight = document.body.getAttribute('data-theme') === 'night';
+        
+        this.colors.bg = style.getPropertyValue('--bg-deep').trim() || '#f8f9fa';
+        this.colors.primary = style.getPropertyValue('--accent-neon-blue').trim() || '#0f172a';
+        this.colors.secondary = style.getPropertyValue('--accent-neon-cyan').trim() || '#b59a5b';
+        this.colors.accent = style.getPropertyValue('--text-main').trim() || '#cbd5e1';
+        this.colors.glow = isNight ? 'rgba(242, 178, 127, 0.15)' : 'rgba(181, 154, 91, 0.2)';
+        this.colors.link = isNight ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.05)';
+    }
+
 
     resize() {
         const parent = this.canvas.parentElement;

@@ -1,6 +1,4 @@
-/**
- * bloch_sphere.js - 3D Projected Bloch Sphere Animator
- */
+import { subscribe } from './state.js';
 
 export class BlochSphere {
     constructor(canvasId) {
@@ -17,15 +15,22 @@ export class BlochSphere {
         this.state = { theta: Math.PI / 4, phi: 0 }; // Initial qubit state
         this.frame = 0;
         
-        this.colors = {
-            primary: '#964900',  // Ambassador Amber
-            secondary: '#c46200', // Light Amber
-            muted: '#d0c4b8',    // UI Grey
-            text: '#1a1a1a'      // Charcoal
-        };
+        this.colors = {};
+        this.refreshColors();
+
+        subscribe('themeChanged', () => this.refreshColors());
 
         this.start();
     }
+
+    refreshColors() {
+        const style = getComputedStyle(document.body);
+        this.colors.primary = style.getPropertyValue('--accent-neon-blue').trim() || '#964900';
+        this.colors.secondary = style.getPropertyValue('--accent-neon-cyan').trim() || '#c46200';
+        this.colors.muted = style.getPropertyValue('--text-muted').trim() || '#d0c4b8';
+        this.colors.text = style.getPropertyValue('--text-main').trim() || '#1a1a1a';
+    }
+
 
     project(x, y, z) {
         // Simple rotation around Y and X axis

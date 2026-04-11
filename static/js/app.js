@@ -36,6 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initStage5();
     initStage6();
     initStage7();
+    initSettings();
+    initTheme();
     initMacroController();
     initMacroWindowManager();
 
@@ -142,25 +144,69 @@ function renderMathForElement(element) {
 }
 
 function initSettings() {
+    const advancedSlot = document.getElementById('btn-toggle-turbo');
     const advancedToggle = document.getElementById('advanced-mode-toggle');
     const expertToolbox = document.getElementById('expert-toolbox');
 
-    if (advancedToggle) {
-        advancedToggle.addEventListener('change', (e) => {
-            state.advancedMode = e.target.checked;
-            emit('advancedModeChanged', state.advancedMode);
-
-            // Toggle visual classes
-            if (state.advancedMode) {
-                document.body.classList.add('mode-advanced');
-                if (expertToolbox) expertToolbox.style.display = 'block';
-            } else {
-                document.body.classList.remove('mode-advanced');
-                if (expertToolbox) expertToolbox.style.display = 'none';
-            }
+    if (advancedSlot && advancedToggle) {
+        advancedSlot.addEventListener('click', () => {
+            advancedToggle.checked = !advancedToggle.checked;
+            updateAdvancedMode(advancedToggle.checked);
         });
+        
+        // Init state
+        updateAdvancedMode(advancedToggle.checked);
+    }
+
+    function updateAdvancedMode(isActive) {
+        state.advancedMode = isActive;
+        emit('advancedModeChanged', state.advancedMode);
+        
+        if (isActive) {
+            document.body.classList.add('mode-advanced');
+            advancedSlot.classList.add('active');
+            if (expertToolbox) expertToolbox.style.display = 'block';
+        } else {
+            document.body.classList.remove('mode-advanced');
+            advancedSlot.classList.remove('active');
+            if (expertToolbox) expertToolbox.style.display = 'none';
+        }
     }
 }
+
+function initTheme() {
+    const themeSlot = document.getElementById('theme-mode-slot');
+    const themeIcon = document.getElementById('theme-icon');
+    const themeLabel = document.getElementById('theme-label');
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('bb84-theme') || 'day';
+    applyTheme(savedTheme);
+
+    if (themeSlot) {
+        themeSlot.addEventListener('click', () => {
+            const currentTheme = document.body.getAttribute('data-theme') === 'night' ? 'day' : 'night';
+            applyTheme(currentTheme);
+        });
+    }
+
+    function applyTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        localStorage.setItem('bb84-theme', theme);
+        emit('themeChanged', theme);
+
+        if (theme === 'night') {
+            if (themeIcon) themeIcon.textContent = '☀️';
+            if (themeLabel) themeLabel.textContent = 'Day';
+            themeSlot.classList.add('active');
+        } else {
+            if (themeIcon) themeIcon.textContent = '🌙';
+            if (themeLabel) themeLabel.textContent = 'Night';
+            themeSlot.classList.remove('active');
+        }
+    }
+}
+
 /**
  * Navigational Jump to Appendix
  * Switches stage and scrolls to specific section

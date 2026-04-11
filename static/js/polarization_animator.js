@@ -1,6 +1,4 @@
-/**
- * polarization_animator.js - Waveform Collapse Animation
- */
+import { subscribe } from './state.js';
 
 export class PolarizationAnimator {
     constructor(canvasId) {
@@ -17,15 +15,22 @@ export class PolarizationAnimator {
         this.phase = 'superposition'; // superposition, collapse
         this.collapseResult = 0; // 0 or 90
 
-        this.colors = {
-            primary: '#964900',  // Ambassador Amber
-            secondary: '#c46200', // Light Amber
-            muted: '#d0c4b8',    // UI Grey
-            text: '#1a1a1a'      // Charcoal
-        };
+        this.colors = {};
+        this.refreshColors();
+        
+        subscribe('themeChanged', () => this.refreshColors());
 
         this.start();
     }
+
+    refreshColors() {
+        const style = getComputedStyle(document.body);
+        this.colors.primary = style.getPropertyValue('--accent-neon-blue').trim() || '#964900';
+        this.colors.secondary = style.getPropertyValue('--accent-neon-cyan').trim() || '#c46200';
+        this.colors.muted = style.getPropertyValue('--text-muted').trim() || '#d0c4b8';
+        this.colors.text = style.getPropertyValue('--text-main').trim() || '#1a1a1a';
+    }
+
 
     drawWave(xStart, width, angle, opacity = 1.0) {
         const centerY = this.height / 2;
