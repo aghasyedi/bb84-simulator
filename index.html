@@ -1,697 +1,1221 @@
+
 <!DOCTYPE html>
 <html lang="en-GB">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BB84.qkd — Quantum Key Distribution Simulator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BB84.qkd — Quantum Key Distribution Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=IBM+Plex+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --void-0: #050200;
+      --void-1: #0b0501;
+      --void-2: #160a03;
+      --copper-0: #7a3a00;
+      --copper-1: #a65414;
+      --copper-2: #d17a3a;
+      --copper-3: #f2b27f;
+      --text-0: rgba(255, 248, 240, 0.95);
+      --text-1: rgba(255, 228, 206, 0.72);
+      --line: rgba(209, 122, 58, 0.18);
+      --line-strong: rgba(209, 122, 58, 0.42);
+      --glass: rgba(17, 8, 2, 0.42);
+      --glass-2: rgba(26, 12, 3, 0.24);
+      --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.2'/%3E%3C/svg%3E");
+      --ease-out: cubic-bezier(.16,1,.3,1);
+      --ease-sci: cubic-bezier(.22,1,.18,1);
+    }
 
-        :root {
-            --void: #050200;
-            --copper: #d17a3a;
-            --copper-dark: #7a3a00;
-        }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(209,122,58,0.06), transparent 32%),
+        radial-gradient(circle at 20% 20%, rgba(209,122,58,0.05), transparent 28%),
+        linear-gradient(180deg, var(--void-2), var(--void-0));
+      color: var(--text-0);
+      font-family: 'IBM Plex Mono', monospace;
+      cursor: none;
+    }
 
-        * { margin:0; padding:0; box-sizing:border-box; }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+    }
+    body::before {
+      background:
+        linear-gradient(rgba(255,255,255,0.02), rgba(255,255,255,0.0) 35%, rgba(209,122,58,0.03) 100%),
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 3px);
+      mix-blend-mode: soft-light;
+      opacity: 0.45;
+    }
+    body::after {
+      background:
+        radial-gradient(circle at center, transparent 38%, rgba(5,2,0,0.48) 72%, rgba(5,2,0,0.92) 100%),
+        var(--noise);
+      opacity: 0.48;
+    }
 
-        body, html {
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            background: var(--void);
-            color: #fff;
-            font-family: 'IBM Plex Mono', monospace;
-            cursor: none;
-        }
+    canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #textLayer { z-index: 1; opacity: 0.72; }
+    #particleLayer { z-index: 2; }
 
-        canvas#quantum-bg {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            mix-blend-mode: screen;
-        }
+    .hud-grid {
+      position: fixed;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, transparent 49.8%, rgba(209,122,58,0.08) 50%, transparent 50.2%),
+        linear-gradient(0deg, transparent 49.8%, rgba(209,122,58,0.06) 50%, transparent 50.2%);
+      background-size: 100% 100%, 100% 100%;
+      mask: radial-gradient(circle at center, black 18%, transparent 72%);
+      opacity: 0.2;
+    }
 
-        #overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 2;
-            pointer-events: none;
-            background: radial-gradient(circle at center, transparent 35%, rgba(5,2,0,0.92) 100%);
-        }
+    .frame {
+      position: fixed;
+      inset: 0;
+      z-index: 6;
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+      pointer-events: none;
+    }
 
-        #content {
-            position: relative;
-            z-index: 10;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-        }
+    .console-shell {
+      position: relative;
+      width: min(760px, 92vw);
+      padding: 1.15rem;
+      border-radius: 34px;
+      background: linear-gradient(180deg, rgba(209,122,58,0.05), rgba(255,255,255,0.01));
+      box-shadow:
+        0 0 0 1px rgba(209,122,58,0.08),
+        0 0 80px rgba(209,122,58,0.14),
+        0 40px 120px rgba(0,0,0,0.58);
+      transform-style: preserve-3d;
+      pointer-events: none;
+    }
 
-        .console {
-            width: 740px;
-            max-width: 92vw;
-            background: rgba(10, 5, 2, 0.72);
-            backdrop-filter: blur(42px);
-            border: 1px solid rgba(209, 122, 58, 0.32);
-            border-radius: 32px;
-            padding: 68px 60px;
-            box-shadow: 
-                0 0 160px -40px rgba(209, 122, 58, 0.7),
-                inset 0 0 100px rgba(122, 58, 0, 0.22),
-                0 30px 60px rgba(0,0,0,0.7);
-            position: relative;
-            overflow: hidden;
-            pointer-events: auto;
-            transition: transform 0.06s linear;
-        }
+    .console-shell::before,
+    .console-shell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+    }
+    .console-shell::before {
+      inset: -1px;
+      background: linear-gradient(140deg, rgba(255,255,255,0.02), rgba(209,122,58,0.38), rgba(255,255,255,0.02));
+      filter: blur(12px);
+      opacity: 0.48;
+    }
+    .console-shell::after {
+      inset: 1px;
+      border: 1px solid rgba(209,122,58,0.15);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+    }
 
-        .console::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: 
-                linear-gradient(transparent, rgba(209,122,58,0.04)),
-                repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(209,122,58,0.022) 4px, rgba(209,122,58,0.022) 8px);
-            pointer-events: none;
-            z-index: 1;
-            mix-blend-mode: overlay;
-        }
+    .console {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      padding: clamp(1.7rem, 3.8vw, 3.6rem);
+      min-height: min(560px, 76vh);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
+        linear-gradient(135deg, rgba(209,122,58,0.15), rgba(8,4,1,0.38) 32%, rgba(8,4,1,0.68) 100%);
+      backdrop-filter: blur(28px) saturate(145%);
+      -webkit-backdrop-filter: blur(28px) saturate(145%);
+      border: 1px solid var(--line);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.08),
+        inset 0 -30px 80px rgba(122,58,0,0.18),
+        0 0 0 1px rgba(255,255,255,0.015);
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      gap: 1.25rem;
+      pointer-events: auto;
+      transform-style: preserve-3d;
+      isolation: isolate;
+    }
 
-        .console::after {
-            content: '';
-            position: absolute;
-            inset: -4px;
-            border-radius: 36px;
-            background: linear-gradient(135deg, transparent, rgba(209,122,58,0.5), transparent);
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            pointer-events: none;
-            animation: chromatic-aberration 5s linear infinite;
-        }
+    .console::before,
+    .console::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .console::before {
+      background:
+        linear-gradient(90deg, transparent, rgba(255,255,255,0.02), transparent),
+        repeating-linear-gradient(0deg, transparent 0 3px, rgba(209,122,58,0.025) 3px 4px),
+        var(--noise);
+      opacity: 0.45;
+      mix-blend-mode: screen;
+    }
+    .console::after {
+      inset: -2px;
+      border-radius: 30px;
+      background:
+        linear-gradient(120deg, rgba(255,90,90,0.18), transparent 18%, transparent 82%, rgba(90,180,255,0.15)),
+        radial-gradient(circle at top left, rgba(209,122,58,0.15), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(209,122,58,0.10), transparent 35%);
+      mix-blend-mode: screen;
+      opacity: 0.65;
+      filter: blur(12px);
+    }
 
-        @keyframes chromatic-aberration {
-            0%   { transform: translate(0,0); }
-            15%  { transform: translate(4px, -2px); }
-            35%  { transform: translate(-3px, 4px); }
-            55%  { transform: translate(3px, -3px); }
-            75%  { transform: translate(-2px, 2px); }
-            100% { transform: translate(0,0); }
-        }
+    .glass-slice,
+    .glass-slice-2 {
+      position: absolute;
+      inset: auto;
+      pointer-events: none;
+      z-index: 1;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+      opacity: 0.6;
+      filter: blur(0.2px);
+    }
+    .glass-slice {
+      top: 16%; left: -8%; width: 54%; height: 1px;
+      transform: rotate(-12deg) translateZ(40px);
+    }
+    .glass-slice-2 {
+      bottom: 18%; right: -10%; width: 46%; height: 1px;
+      transform: rotate(14deg) translateZ(52px);
+    }
 
-        .subtitle {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.2rem;
-            letter-spacing: 10px;
-            color: #d17a3a;
-            text-transform: uppercase;
-            opacity: 0.92;
-            margin-bottom: 16px;
-            text-align: center;
-        }
+    .brand,
+    .title-wrap,
+    .descriptor,
+    .launch-btn,
+    .terminal {
+      position: relative;
+      z-index: 2;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
 
-        .title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: clamp(4.2rem, 10vw, 8rem);
-            font-weight: 900;
-            letter-spacing: -7px;
-            text-align: center;
-            line-height: 0.8;
-            color: #fff;
-            text-shadow: 
-                0 0 50px #d17a3a,
-                0 0 100px rgba(209,122,58,0.7);
-            margin-bottom: 20px;
-            position: relative;
-        }
+    .brand {
+      letter-spacing: 0.62rem;
+      text-transform: uppercase;
+      font-size: clamp(0.74rem, 0.65rem + 0.32vw, 0.98rem);
+      color: var(--copper-3);
+      opacity: 0.88;
+      text-align: centre;
+      text-shadow: 0 0 24px rgba(209,122,58,0.28);
+    }
 
-        .title::after {
-            content: attr(data-text);
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%;
-            height: 100%;
-            color: #d17a3a;
-            opacity: 0.2;
-            filter: blur(12px);
-            animation: digital-glitch 0.55s infinite linear alternate;
-        }
+    .crest {
+      width: 96px;
+      height: 96px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      margin-bottom: 0.4rem;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.12), transparent 38%),
+        radial-gradient(circle at 50% 50%, rgba(209,122,58,0.15), rgba(5,2,0,0.18));
+      border: 1px solid rgba(209,122,58,0.24);
+      box-shadow:
+        inset 0 0 24px rgba(209,122,58,0.16),
+        0 0 64px rgba(209,122,58,0.12);
+      transform: translateZ(76px);
+    }
+    .crest svg { width: 54px; height: 54px; color: var(--copper-2); filter: drop-shadow(0 0 16px rgba(209,122,58,0.35)); }
 
-        @keyframes digital-glitch {
-            0%   { clip-path: inset(0 0 0 0); }
-            8%   { clip-path: inset(18% 0 62% 0); }
-            18%  { clip-path: inset(62% 0 18% 0); }
-            28%  { clip-path: inset(28% 0 52% 0); }
-            38%  { clip-path: inset(0 0 0 0); }
-            100% { clip-path: inset(0 0 0 0); }
-        }
+    .title-wrap {
+      text-align: center;
+      transform: translateZ(90px);
+    }
 
-        .description {
-            text-align: center;
-            color: #aaa;
-            font-size: 1.4rem;
-            letter-spacing: 5px;
-            margin-bottom: 32px;
-            font-weight: 300;
-        }
+    h1 {
+      position: relative;
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(3.2rem, 8vw, 7rem);
+      font-weight: 900;
+      line-height: 0.88;
+      letter-spacing: -0.14rem;
+      text-transform: none;
+      text-shadow:
+        0 0 18px rgba(209,122,58,0.32),
+        0 0 52px rgba(209,122,58,0.18),
+        0 12px 40px rgba(0,0,0,0.45);
+      white-space: nowrap;
+    }
 
-        .engineered-badge {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            margin: 0 auto 42px;
-            padding: 9px 36px;
-            background: rgba(209,122,58,0.1);
-            border: 1px solid rgba(209,122,58,0.4);
-            border-radius: 9999px;
-            font-size: 0.95rem;
-            letter-spacing: 5px;
-            color: #d17a3a;
-            text-transform: uppercase;
-            font-weight: 500;
-            box-shadow: 0 0 32px rgba(209,122,58,0.5);
-            white-space: nowrap;
-        }
+    .title-main,
+    .title-ghost,
+    .title-scramble {
+      display: block;
+    }
+    .title-ghost,
+    .title-scramble {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .title-ghost {
+      color: rgba(209,122,58,0.24);
+      filter: blur(7px);
+      transform: translate3d(0, 0, -1px);
+    }
+    .title-scramble {
+      color: rgba(255,247,238,0.96);
+      mix-blend-mode: screen;
+    }
 
-        .launch-btn {
-            display: block;
-            margin: 0 auto;
-            padding: 32px 104px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.55rem;
-            font-weight: 700;
-            letter-spacing: 8px;
-            text-transform: uppercase;
-            color: #fff;
-            background: linear-gradient(135deg, #994a00, #7a3a00);
-            border: 2px solid #d17a3a;
-            border-radius: 16px;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 0 80px rgba(209,122,58,0.8);
-            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-        }
+    .descriptor {
+      text-align: center;
+      max-width: 42ch;
+      color: var(--text-1);
+      font-size: clamp(0.94rem, 0.9rem + 0.35vw, 1.16rem);
+      line-height: 1.7;
+      transform: translateZ(62px);
+    }
+    .descriptor strong {
+      color: var(--copper-3);
+      font-weight: 500;
+    }
 
-        .launch-btn:hover {
-            transform: translateY(-6px) scale(1.06);
-            box-shadow: 0 0 120px rgba(209,122,58,1);
-        }
+    .meta-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      transform: translateZ(52px);
+      z-index: 2;
+    }
+    .meta-pill {
+      border: 1px solid rgba(209,122,58,0.14);
+      background: rgba(255,255,255,0.025);
+      color: rgba(255,234,220,0.78);
+      border-radius: 999px;
+      padding: 0.62rem 0.95rem;
+      font-size: 0.75rem;
+      letter-spacing: 0.18rem;
+      text-transform: uppercase;
+      backdrop-filter: blur(14px);
+    }
 
-        .launch-btn::before {
-            content: '';
-            position: absolute;
-            top: -70%;
-            left: -180%;
-            width: 70%;
-            height: 340%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
-            animation: scanline-shine 3.2s linear infinite;
-        }
+    .launch-btn {
+      position: relative;
+      display: inline-grid;
+      place-items: center;
+      min-width: min(100%, 420px);
+      padding: 1.35rem 2rem;
+      margin-top: 0.4rem;
+      border-radius: 18px;
+      border: 1px solid rgba(242,178,127,0.34);
+      background:
+        linear-gradient(180deg, rgba(209,122,58,0.18), rgba(122,58,0,0.34)),
+        rgba(12,6,2,0.82);
+      colour: var(--text-0);
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.94rem, 0.86rem + 0.44vw, 1.22rem);
+      font-weight: 700;
+      letter-spacing: 0.42rem;
+      text-transform: uppercase;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        0 0 0 1px rgba(209,122,58,0.12),
+        0 20px 40px rgba(0,0,0,0.35),
+        0 0 40px rgba(209,122,58,0.16);
+      overflow: hidden;
+      transition: transform 240ms var(--ease-out), box-shadow 240ms var(--ease-out), border-color 240ms var(--ease-out), background 240ms var(--ease-out);
+      transform: translateZ(108px);
+      isolation: isolate;
+    }
+    .launch-btn::before,
+    .launch-btn::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: -1;
+    }
+    .launch-btn::before {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
+      transform: translateX(-140%);
+      animation: sheen 4.6s linear infinite;
+    }
+    .launch-btn::after {
+      inset: -20%;
+      background: radial-gradient(circle at 50% 50%, rgba(209,122,58,0.28), transparent 45%);
+      opacity: 0;
+      transition: opacity 240ms var(--ease-out);
+    }
+    .launch-btn:hover,
+    .launch-btn:focus-visible {
+      transform: translateZ(120px) translateY(-2px) scale(1.015);
+      border-color: rgba(242,178,127,0.56);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        0 0 0 1px rgba(209,122,58,0.18),
+        0 24px 56px rgba(0,0,0,0.42),
+        0 0 66px rgba(209,122,58,0.28);
+    }
+    .launch-btn:hover::after,
+    .launch-btn:focus-visible::after { opacity: 1; }
+    .launch-btn:active { transform: translateZ(116px) scale(0.995); }
+    .launch-btn[disabled] {
+      opacity: 0.42;
+      pointer-events: none;
+      filter: saturate(0.6);
+    }
 
-        @keyframes scanline-shine {
-            0%   { transform: translateX(-180%); }
-            100% { transform: translateX(450%); }
-        }
+    .terminal {
+      width: min(100%, 520px);
+      min-height: 3.5rem;
+      padding: 1rem 1.1rem;
+      border-radius: 16px;
+      border: 1px solid rgba(209,122,58,0.12);
+      background: rgba(0,0,0,0.22);
+      color: rgba(242,178,127,0.88);
+      letter-spacing: 0.14rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      transform: translateZ(48px);
+      opacity: 0.72;
+      box-shadow: inset 0 0 24px rgba(209,122,58,0.05);
+    }
+    .terminal::before {
+      content: "> ";
+      color: rgba(242,178,127,0.96);
+    }
+    .terminal.typing::after {
+      content: "_";
+      display: inline-block;
+      margin-left: 0.35rem;
+      animation: blink 0.9s steps(1) infinite;
+    }
 
-        .terminal-line {
-            position: absolute;
-            bottom: 38px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 1.05rem;
-            color: #d17a3a;
-            opacity: 0;
-            white-space: nowrap;
-            letter-spacing: 4px;
-            text-shadow: 0 0 15px #d17a3a;
-        }
+    .system-readout {
+      position: fixed;
+      inset: auto 1rem 1rem auto;
+      z-index: 7;
+      display: grid;
+      gap: 0.3rem;
+      padding: 0.9rem 1rem;
+      border-radius: 14px;
+      border: 1px solid rgba(209,122,58,0.12);
+      background: rgba(8,4,1,0.36);
+      backdrop-filter: blur(16px);
+      pointer-events: none;
+      color: rgba(255,228,206,0.62);
+      font-size: 0.68rem;
+      letter-spacing: 0.18rem;
+      text-transform: uppercase;
+      line-height: 1.5;
+    }
 
-        .custom-cursor {
-            position: fixed;
-            width: 32px;
-            height: 32px;
-            border: 2px solid rgba(209,122,58,0.75);
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 99999;
-            mix-blend-mode: difference;
-            transition: width 0.2s cubic-bezier(0.4,0,0.2,1), height 0.2s cubic-bezier(0.4,0,0.2,1);
-        }
+    .cursor,
+    .cursor-ring {
+      position: fixed;
+      top: 0;
+      left: 0;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 20;
+      mix-blend-mode: screen;
+      will-change: transform;
+    }
+    .cursor {
+      width: 12px;
+      height: 12px;
+      background: radial-gradient(circle, rgba(242,178,127,1), rgba(209,122,58,0.4));
+      box-shadow: 0 0 24px rgba(209,122,58,0.58);
+    }
+    .cursor-ring {
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(242,178,127,0.55);
+      box-shadow: inset 0 0 20px rgba(209,122,58,0.14), 0 0 30px rgba(209,122,58,0.14);
+    }
+    .cursor.active + .cursor-ring,
+    .cursor-ring.active {
+      transform: scale(0.72);
+      border-color: rgba(242,178,127,0.92);
+    }
 
-        .custom-cursor.active {
-            width: 18px;
-            height: 18px;
-            background: #d17a3a;
-            box-shadow: 0 0 22px #d17a3a;
-        }
-    </style>
+    .flash,
+    .iris,
+    .lockout {
+      position: fixed;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 12;
+    }
+    .iris {
+      background: radial-gradient(circle at center, rgba(209,122,58,0.24), rgba(5,2,0,0.92) 46%, rgba(5,2,0,1) 72%);
+      mix-blend-mode: screen;
+      transition: opacity 500ms var(--ease-sci);
+    }
+    .flash {
+      background:
+        radial-gradient(circle at center, rgba(255,245,232,1) 0 10%, rgba(242,178,127,0.98) 22%, rgba(209,122,58,0.66) 46%, rgba(5,2,0,0) 74%),
+        linear-gradient(180deg, rgba(255,232,214,0.28), rgba(209,122,58,0));
+      mix-blend-mode: screen;
+      transition: opacity 240ms linear;
+    }
+    .lockout {
+      background: transparent;
+      z-index: 18;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @keyframes sheen {
+      0% { transform: translateX(-140%); }
+      100% { transform: translateX(220%); }
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    @media (max-width: 720px) {
+      body, html { cursor: auto; }
+      .cursor, .cursor-ring { display: none; }
+      .brand { letter-spacing: 0.34rem; }
+      .launch-btn { letter-spacing: 0.25rem; }
+      .meta-row { gap: 0.5rem; }
+      .meta-pill { padding: 0.55rem 0.75rem; letter-spacing: 0.12rem; }
+      .system-readout { left: 1rem; right: 1rem; inset: auto 1rem 1rem 1rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+      body, html { cursor: auto; }
+      .cursor, .cursor-ring { display: none; }
+    }
+  </style>
 </head>
 <body>
+  <canvas id="textLayer" aria-hidden="true"></canvas>
+  <canvas id="particleLayer" aria-hidden="true"></canvas>
+  <div class="hud-grid" aria-hidden="true"></div>
+  <div class="iris" id="iris"></div>
+  <div class="flash" id="flash"></div>
+  <div class="lockout" id="lockout"></div>
 
-    <canvas id="quantum-bg"></canvas>
-    <div id="overlay"></div>
+  <main class="frame">
+    <section class="console-shell" id="consoleShell" aria-labelledby="bb84-title">
+      <div class="console" id="console">
+        <div class="glass-slice" aria-hidden="true"></div>
+        <div class="glass-slice-2" aria-hidden="true"></div>
 
-    <div id="content">
-        <div class="console" id="console">
-            <div class="subtitle">Quantum Key Distribution</div>
-            <h1 class="title" data-text="BB84.qkd">BB84.qkd</h1>
-            <div class="description">Interactive BB84 Protocol Simulator</div>
-            
-            <div class="engineered-badge">
-                <span>ENGINEERED BY AGHA</span>
-            </div>
-
-            <button class="launch-btn" id="launch-btn">
-                INITIALISE SYSTEM
-            </button>
-
-            <div class="terminal-line" id="terminal"></div>
+        <div class="crest" aria-hidden="true">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Quantum crest">
+            <circle cx="32" cy="32" r="22" stroke="currentColor" stroke-width="1.4" opacity="0.65"/>
+            <path d="M14 32C22 20 42 20 50 32C42 44 22 44 14 32Z" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M32 10V54" stroke="currentColor" stroke-width="1.4" opacity="0.75"/>
+            <circle cx="32" cy="32" r="4.5" fill="currentColor"/>
+          </svg>
         </div>
-    </div>
 
-    <div class="custom-cursor" id="cursor"></div>
+        <p class="brand">Quantum Cryptography Division</p>
 
-    <script>
-        // =============== QUANTUM BACKGROUND CANVAS ===============
-        const canvas = document.getElementById('quantum-bg');
-        const ctx = canvas.getContext('2d', { alpha: true });
-        
-        let w, h;
-        function resize() {
-            w = window.innerWidth;
-            h = window.innerHeight;
-            canvas.width = w;
-            canvas.height = h;
+        <div class="title-wrap">
+          <h1 id="bb84-title" aria-label="BB84 dot QKD">
+            <span class="title-main" id="titleMain">BB84.qkd</span>
+            <span class="title-ghost" aria-hidden="true">BB84.qkd</span>
+            <span class="title-scramble" id="titleScramble" aria-hidden="true">BB84.qkd</span>
+          </h1>
+        </div>
+
+        <p class="descriptor">A cinematic launch interface for an interactive <strong>BB84</strong> quantum key distribution simulator. Visualise polarisation states, basis alignment, and secure channel emergence in a live computational environment.</p>
+
+        <div class="meta-row" aria-hidden="true">
+          <span class="meta-pill">Polarisation Basis</span>
+          <span class="meta-pill">Quantum Channel</span>
+          <span class="meta-pill">Key Exchange</span>
+        </div>
+
+        <button class="launch-btn" id="launchBtn" type="button">
+          <span>INITIALISE SYSTEM</span>
+        </button>
+
+        <div class="terminal" id="terminal">Awaiting operator handshake...</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="system-readout" aria-hidden="true">
+    <span>Mode :: BB84 Protocol</span>
+    <span>Field :: Entangled Photonic Lattice</span>
+    <span>Palette :: Void / Copper</span>
+  </div>
+
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-ring" id="cursorRing"></div>
+
+  <script>
+    (() => {
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const particleCanvas = document.getElementById('particleLayer');
+      const particleCtx = particleCanvas.getContext('2d', { alpha: true });
+      const textCanvas = document.getElementById('textLayer');
+      const textCtx = textCanvas.getContext('2d', { alpha: true });
+
+      const consoleShell = document.getElementById('consoleShell');
+      const consolePanel = document.getElementById('console');
+      const launchBtn = document.getElementById('launchBtn');
+      const terminal = document.getElementById('terminal');
+      const titleMain = document.getElementById('titleMain');
+      const titleScramble = document.getElementById('titleScramble');
+      const flash = document.getElementById('flash');
+      const iris = document.getElementById('iris');
+      const lockout = document.getElementById('lockout');
+      const cursor = document.getElementById('cursor');
+      const cursorRing = document.getElementById('cursorRing');
+
+      let w = window.innerWidth;
+      let h = window.innerHeight;
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
+      let centre = { x: w * 0.5, y: h * 0.5 };
+      let running = true;
+      let collapse = false;
+      let collapseProgress = 0;
+      let shock = 0;
+      let flashAlpha = 0;
+      let titleClock = 0;
+      let textDrift = 0;
+      let audioReady = false;
+
+      const mouse = {
+        x: w * 0.5,
+        y: h * 0.5,
+        px: w * 0.5,
+        py: h * 0.5,
+        vx: 0,
+        vy: 0,
+        speed: 0,
+        down: false,
+        intensity: 0,
+        proximity: 0
+      };
+
+      function resize() {
+        w = window.innerWidth;
+        h = window.innerHeight;
+        centre.x = w * 0.5;
+        centre.y = h * 0.5;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        [particleCanvas, textCanvas].forEach((canvas) => {
+          canvas.width = Math.floor(w * dpr);
+          canvas.height = Math.floor(h * dpr);
+          canvas.style.width = w + 'px';
+          canvas.style.height = h + 'px';
+        });
+        particleCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        textCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      const palette = {
+        copper: [209, 122, 58],
+        copperBright: [242, 178, 127],
+        copperDark: [122, 58, 0],
+        white: [255, 246, 238]
+      };
+
+      const TAU = Math.PI * 2;
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const ease = (t) => 1 - Math.pow(1 - t, 3);
+      const rnd = (a = 1, b = 0) => Math.random() * (a - b) + b;
+
+      class Photon {
+        constructor(index) {
+          this.index = index;
+          this.seed = Math.random() * 1000;
+          this.reset(true);
         }
-        window.addEventListener('resize', resize);
-        resize();
+        reset(initial = false) {
+          const edge = Math.floor(Math.random() * 4);
+          if (initial) {
+            this.x = Math.random() * w;
+            this.y = Math.random() * h;
+          } else {
+            if (edge === 0) { this.x = -30; this.y = Math.random() * h; }
+            if (edge === 1) { this.x = w + 30; this.y = Math.random() * h; }
+            if (edge === 2) { this.x = Math.random() * w; this.y = -30; }
+            if (edge === 3) { this.x = Math.random() * w; this.y = h + 30; }
+          }
+          this.originX = this.x;
+          this.originY = this.y;
+          const angle = Math.random() * TAU;
+          const speed = rnd(1.6, 0.2);
+          this.vx = Math.cos(angle) * speed;
+          this.vy = Math.sin(angle) * speed;
+          this.ax = 0;
+          this.ay = 0;
+          this.size = rnd(2.2, 0.5);
+          this.life = rnd(1, 0.45);
+          this.theta = Math.random() * TAU;
+          this.spin = rnd(0.035, -0.035);
+          this.orbit = rnd(1.4, 0.3);
+          this.phase = Math.random() * 999;
+          this.polarity = Math.random() > 0.5 ? 1 : -1;
+          this.twist = rnd(1.4, -1.4);
+          this.trail = [];
+          this.channel = Math.random();
+        }
+        update(dt) {
+          const dx = mouse.x - this.x;
+          const dy = mouse.y - this.y;
+          const distSq = dx * dx + dy * dy + 0.0001;
+          const dist = Math.sqrt(distSq);
+          const influenceRadius = collapse ? 520 : 260 + mouse.speed * 2.2;
+          if (dist < influenceRadius) {
+            const f = (1 - dist / influenceRadius);
+            const directional = mouse.down ? -1 : 1;
+            const velFactor = clamp(mouse.speed / 36, 0, 2.6);
+            const force = directional * f * (0.48 + velFactor * 0.7);
+            this.ax -= (dx / dist) * force * (0.16 + this.channel * 0.08);
+            this.ay -= (dy / dist) * force * (0.16 + this.channel * 0.08);
+            this.ax += mouse.vx * 0.0008 * f;
+            this.ay += mouse.vy * 0.0008 * f;
+          }
 
-        // Advanced Photon class with polarisation and entanglement simulation
-        class Photon {
-            constructor() {
-                this.reset();
+          const waveX = Math.sin((this.y * 0.0054) + this.phase + titleClock * 0.0016) * 0.035;
+          const waveY = Math.cos((this.x * 0.0051) - this.phase + titleClock * 0.0014) * 0.035;
+          const cx = centre.x - this.x;
+          const cy = centre.y - this.y;
+          const centrePull = collapse ? 0.0025 + collapseProgress * 0.048 : 0.00022;
+          this.ax += cx * centrePull + waveX;
+          this.ay += cy * centrePull + waveY;
+
+          if (collapse) {
+            const ang = Math.atan2(cy, cx) + this.polarity * (1.2 - collapseProgress * 0.85);
+            const vortex = (1 - collapseProgress) * 0.42 + 0.08;
+            this.ax += Math.cos(ang) * vortex;
+            this.ay += Math.sin(ang) * vortex;
+            this.size = lerp(this.size, 0.42, 0.035);
+          }
+
+          this.vx = (this.vx + this.ax) * (collapse ? 0.965 : 0.985);
+          this.vy = (this.vy + this.ay) * (collapse ? 0.965 : 0.985);
+          this.x += this.vx * dt * 0.9;
+          this.y += this.vy * dt * 0.9;
+          this.ax = 0;
+          this.ay = 0;
+          this.theta += this.spin + (mouse.speed * 0.00005);
+          this.life = clamp(this.life + (Math.random() - 0.5) * 0.012, 0.4, 1);
+
+          this.trail.push({ x: this.x, y: this.y, a: this.life });
+          if (this.trail.length > 6) this.trail.shift();
+
+          if (!collapse) {
+            if (this.x < -60 || this.x > w + 60 || this.y < -60 || this.y > h + 60) this.reset();
+          } else {
+            const cdx = centre.x - this.x;
+            const cdy = centre.y - this.y;
+            if (Math.hypot(cdx, cdy) < 10 && collapseProgress > 0.76) this.reset();
+          }
+        }
+        draw(ctx) {
+          const glow = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 9);
+          glow.addColorStop(0, `rgba(${palette.copperBright.join(',')},${0.16 * this.life + shock * 0.12})`);
+          glow.addColorStop(0.35, `rgba(${palette.copper.join(',')},${0.18 * this.life + shock * 0.08})`);
+          glow.addColorStop(1, 'rgba(209,122,58,0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size * 9, 0, TAU);
+          ctx.fill();
+
+          ctx.lineWidth = 1 + this.size * 0.16;
+          ctx.strokeStyle = `rgba(${palette.copper.join(',')},${0.58 * this.life + shock * 0.22})`;
+          ctx.beginPath();
+          const lx = Math.cos(this.theta) * this.size * 3.5;
+          const ly = Math.sin(this.theta) * this.size * 3.5;
+          ctx.moveTo(this.x - lx, this.y - ly);
+          ctx.lineTo(this.x + lx, this.y + ly);
+          ctx.stroke();
+
+          ctx.fillStyle = `rgba(${palette.white.join(',')},${0.82 * this.life})`;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size * 0.52, 0, TAU);
+          ctx.fill();
+
+          ctx.lineWidth = 1;
+          for (let i = 1; i < this.trail.length; i++) {
+            const p0 = this.trail[i - 1];
+            const p1 = this.trail[i];
+            const alpha = (i / this.trail.length) * 0.08;
+            ctx.strokeStyle = `rgba(${palette.copperBright.join(',')},${alpha})`;
+            ctx.beginPath();
+            ctx.moveTo(p0.x, p0.y);
+            ctx.lineTo(p1.x, p1.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      const photonCount = prefersReducedMotion ? 420 : 1400;
+      const photons = Array.from({ length: photonCount }, (_, i) => new Photon(i));
+
+      const ribbons = [
+        { text: 'QUANTUM KEY DISTRIBUTION', y: 0.18, speed: 0.44, size: 28, alpha: 0.07, dir: 1, offset: 0.1, front: false },
+        { text: 'BB84 PROTOCOL', y: 0.33, speed: 0.72, size: 48, alpha: 0.09, dir: -1, offset: 0.42, front: false },
+        { text: 'POLARISED PHOTONS', y: 0.54, speed: 0.51, size: 26, alpha: 0.06, dir: 1, offset: 0.2, front: true },
+        { text: 'ENTANGLEMENT VECTOR', y: 0.71, speed: 0.66, size: 34, alpha: 0.07, dir: -1, offset: 0.76, front: true }
+      ];
+
+      function drawTextField() {
+        textCtx.clearRect(0, 0, w, h);
+        textCtx.save();
+        textCtx.globalCompositeOperation = 'screen';
+        textCtx.textBaseline = 'middle';
+        ribbons.forEach((ribbon, idx) => {
+          const fontSize = ribbon.size + Math.sin(titleClock * 0.0005 + idx) * 2;
+          textCtx.font = `700 ${fontSize}px Orbitron, sans-serif`;
+          const phrase = `${ribbon.text}   ${ribbon.text}   ${ribbon.text}   `;
+          const metrics = textCtx.measureText(phrase).width;
+          const offset = ((textDrift * ribbon.speed * ribbon.dir) + (ribbon.offset * metrics)) % metrics;
+          const y = h * ribbon.y + Math.sin(titleClock * 0.0007 + idx * 2.1) * 40;
+          const angle = (Math.sin(titleClock * 0.00025 + idx) * 0.18) + (idx % 2 === 0 ? 0.14 : -0.12);
+          textCtx.save();
+          textCtx.translate(w * 0.5, y);
+          textCtx.rotate(angle);
+          textCtx.fillStyle = `rgba(${idx % 2 ? palette.copper.join(',') : palette.copperBright.join(',')},${ribbon.alpha + shock * 0.06})`;
+          textCtx.shadowBlur = 18;
+          textCtx.shadowColor = 'rgba(209,122,58,0.12)';
+          for (let x = -w - metrics; x < w + metrics; x += metrics) {
+            textCtx.fillText(phrase, x - offset - w * 0.5, 0);
+          }
+          textCtx.restore();
+        });
+
+        textCtx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 3; i++) {
+          const radius = Math.min(w, h) * (0.18 + i * 0.11 + Math.sin(titleClock * 0.0006 + i) * 0.015);
+          textCtx.strokeStyle = `rgba(209,122,58,${0.08 - i * 0.02 + shock * 0.03})`;
+          textCtx.lineWidth = 1.1;
+          textCtx.beginPath();
+          textCtx.ellipse(centre.x, centre.y, radius * (1 + i * 0.12), radius * 0.36, titleClock * 0.0001 + i * 0.8, 0, TAU);
+          textCtx.stroke();
+        }
+        textCtx.restore();
+      }
+
+      function drawWaveField() {
+        const rows = 7;
+        particleCtx.save();
+        particleCtx.globalCompositeOperation = 'lighter';
+        for (let row = 0; row < rows; row++) {
+          const yBase = h * (0.12 + row * 0.11);
+          particleCtx.beginPath();
+          for (let x = -20; x <= w + 20; x += 14) {
+            const dx = x - centre.x;
+            const dy = yBase - centre.y;
+            const radial = Math.hypot(dx, dy) * 0.018;
+            const wave = Math.sin(x * 0.012 + titleClock * 0.0014 + row * 0.8) * (10 + row * 1.5)
+              + Math.cos(x * 0.021 - titleClock * 0.0009 + radial) * 8
+              + Math.sin((dx * dx + dy * dy) * 0.00002 - titleClock * 0.0012) * 7;
+            const y = yBase + wave + (collapse ? Math.sin(radial - titleClock * 0.004) * 8 * (1 - collapseProgress) : 0);
+            if (x === -20) particleCtx.moveTo(x, y);
+            else particleCtx.lineTo(x, y);
+          }
+          particleCtx.strokeStyle = `rgba(${palette.copper.join(',')},${0.026 + row * 0.003 + shock * 0.03})`;
+          particleCtx.lineWidth = 1;
+          particleCtx.stroke();
+        }
+        particleCtx.restore();
+      }
+
+      function connectPhotons() {
+        particleCtx.save();
+        particleCtx.globalCompositeOperation = 'screen';
+        for (let i = 0; i < photons.length; i += 6) {
+          const a = photons[i];
+          let nearest = null;
+          let nd = 999999;
+          for (let j = i + 1; j < Math.min(i + 24, photons.length); j++) {
+            const b = photons[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const d = dx * dx + dy * dy;
+            if (d < nd && d < 9000) {
+              nd = d;
+              nearest = b;
             }
-            reset() {
-                this.x = Math.random() * w;
-                this.y = Math.random() * h;
-                this.vx = (Math.random() - 0.5) * 2.4;
-                this.vy = (Math.random() - 0.5) * 2.4;
-                this.size = Math.random() * 4 + 1.8;
-                this.life = 1;
-                this.angle = Math.random() * Math.PI * 2;
-                this.spin = (Math.random() - 0.5) * 0.18;
-                this.polarisation = Math.random() > 0.5 ? 0 : Math.PI / 4; // H/V or diagonal
-            }
-            update(mx, my, force) {
-                const dx = mx - this.x;
-                const dy = my - this.y;
-                const dist = Math.hypot(dx, dy) || 1;
-
-                if (dist < 340) {
-                    const repel = (340 - dist) / 340 * force * 0.038;
-                    this.vx -= (dx / dist) * repel;
-                    this.vy -= (dy / dist) * repel;
-                }
-
-                // Central quantum attraction with noise
-                this.vx += (w/2 - this.x) * 0.00018;
-                this.vy += (h/2 - this.y) * 0.00018;
-
-                this.x += this.vx;
-                this.y += this.vy;
-
-                this.vx *= 0.972;
-                this.vy *= 0.972;
-
-                this.angle += this.spin;
-                this.life = Math.max(0.25, this.life - 0.001);
-
-                // Quantum tunnel boundary
-                if (this.x < 0) this.x = w;
-                if (this.x > w) this.x = 0;
-                if (this.y < 0) this.y = h;
-                if (this.y > h) this.y = 0;
-            }
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.angle + this.polarisation);
-
-                // Photon glow field
-                const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 8);
-                grad.addColorStop(0, `hsla(28, 96%, 74%, ${this.life})`);
-                grad.addColorStop(1, 'transparent');
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.arc(0, 0, this.size * 8, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Polarisation vector
-                ctx.strokeStyle = `rgba(209, 122, 58, ${this.life * 0.95})`;
-                ctx.lineWidth = 2.4;
-                ctx.beginPath();
-                ctx.moveTo(-this.size * 4.5, 0);
-                ctx.lineTo(this.size * 4.5, 0);
-                ctx.stroke();
-
-                ctx.restore();
-            }
+          }
+          if (nearest) {
+            particleCtx.strokeStyle = `rgba(${palette.copperBright.join(',')},${0.018 + shock * 0.06})`;
+            particleCtx.lineWidth = 0.8;
+            particleCtx.beginPath();
+            particleCtx.moveTo(a.x, a.y);
+            particleCtx.lineTo(nearest.x, nearest.y);
+            particleCtx.stroke();
+          }
         }
+        particleCtx.restore();
+      }
 
-        let photons = [];
-        const PHOTON_COUNT = 960;
+      let last = performance.now();
+      function animate(now) {
+        if (!running) return;
+        const dt = clamp((now - last) / 16.666, 0.6, 1.8);
+        last = now;
+        titleClock = now;
+        textDrift += dt * (collapse ? 10 : 2.2);
+        shock = Math.max(0, shock * 0.94 - 0.002);
+        flashAlpha = Math.max(0, flashAlpha * 0.9 - 0.004);
 
-        for (let i = 0; i < PHOTON_COUNT; i++) {
-            photons.push(new Photon());
+        if (collapse) collapseProgress = clamp(collapseProgress + dt * 0.012, 0, 1);
+        iris.style.opacity = collapse ? String(Math.min(0.92, collapseProgress * 1.2)) : '0';
+        flash.style.opacity = String(Math.max(flashAlpha, collapse ? Math.max(0, 0.28 - collapseProgress * 0.16) : 0));
+
+        particleCtx.clearRect(0, 0, w, h);
+        particleCtx.fillStyle = 'rgba(5,2,0,0.16)';
+        particleCtx.fillRect(0, 0, w, h);
+
+        drawTextField();
+        drawWaveField();
+
+        particleCtx.save();
+        particleCtx.globalCompositeOperation = 'lighter';
+        photons.forEach((photon) => {
+          photon.update(dt);
+          photon.draw(particleCtx);
+        });
+        particleCtx.restore();
+        connectPhotons();
+
+        const field = particleCtx.createRadialGradient(centre.x, centre.y, 0, centre.x, centre.y, Math.min(w, h) * 0.5);
+        field.addColorStop(0, `rgba(${palette.copper.join(',')},${0.07 + shock * 0.1})`);
+        field.addColorStop(0.38, 'rgba(209,122,58,0.03)');
+        field.addColorStop(1, 'rgba(209,122,58,0)');
+        particleCtx.fillStyle = field;
+        particleCtx.fillRect(0, 0, w, h);
+
+        updateCursor();
+        updateParallax();
+        requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+
+      function updateCursor() {
+        if (prefersReducedMotion || window.innerWidth < 721) return;
+        cursor.style.transform = `translate3d(${mouse.x - 6}px, ${mouse.y - 6}px, 0)`;
+        cursorRing.style.transform = `translate3d(${mouse.x - 22 + mouse.vx * 0.04}px, ${mouse.y - 22 + mouse.vy * 0.04}px, 0) scale(${launchBtn.matches(':hover') ? 0.82 : 1})`;
+      }
+
+      function updateParallax() {
+        const rect = consoleShell.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = (mouse.x - cx) / rect.width;
+        const dy = (mouse.y - cy) / rect.height;
+        const proximity = 1 - clamp(Math.hypot(mouse.x - cx, mouse.y - cy) / Math.max(rect.width, rect.height), 0, 1);
+        mouse.proximity = proximity;
+
+        if (!collapse && !prefersReducedMotion) {
+          consoleShell.style.transform = `perspective(1600px) rotateX(${(-dy * 14).toFixed(2)}deg) rotateY(${(dx * 18).toFixed(2)}deg) translate3d(${(dx * 12).toFixed(2)}px, ${(dy * 12).toFixed(2)}px, 0)`;
+          consolePanel.style.transform = `translate3d(${(dx * 10).toFixed(2)}px, ${(dy * 10).toFixed(2)}px, 0)`;
+          titleMain.style.transform = `translate3d(${(dx * -12).toFixed(2)}px, ${(dy * -8).toFixed(2)}px, ${90 + proximity * 20}px)`;
+          titleScramble.style.transform = `translate3d(${(dx * 8).toFixed(2)}px, ${(dy * 6).toFixed(2)}px, ${110 + proximity * 20}px)`;
+          launchBtn.style.transform = `translateZ(${108 + proximity * 14}px) translate3d(${(dx * -10).toFixed(2)}px, ${(dy * -8).toFixed(2)}px, 0)`;
+          terminal.style.transform = `translateZ(${48 + proximity * 10}px) translate3d(${(dx * 6).toFixed(2)}px, ${(dy * 8).toFixed(2)}px, 0)`;
         }
+      }
 
-        // Kinetic scrolling text layers (behind and in front)
-        class Marquee {
-            constructor(text, yFraction, speed, dir, size, alpha) {
-                this.text = text.toUpperCase() + ' • ';
-                this.yFraction = yFraction;
-                this.speed = speed;
-                this.dir = dir;
-                this.size = size;
-                this.alpha = alpha;
-                this.x = Math.random() * -1200;
-                this.textWidth = 0;
-            }
-            update() {
-                this.x += this.speed * this.dir;
-            }
-            draw(ctx, currentW, currentH) {
-                const y = currentH * this.yFraction;
-                ctx.save();
-                ctx.globalAlpha = this.alpha;
-                ctx.fillStyle = '#d17a3a';
-                ctx.font = `900 ${this.size}px Orbitron, sans-serif`;
-                ctx.textBaseline = 'middle';
-
-                if (this.textWidth === 0) this.textWidth = ctx.measureText(this.text).width || 1400;
-
-                let offset = this.x % this.textWidth;
-                ctx.fillText(this.text, offset, y);
-                ctx.fillText(this.text, offset + this.textWidth, y);
-                ctx.fillText(this.text, offset - this.textWidth, y);
-
-                ctx.restore();
-            }
+      const scrambleGlyphs = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./\\|[]{}<>*+-';
+      let scrambleTarget = 'BB84.qkd';
+      let scrambleHold = 0;
+      function tickGlitch() {
+        if (collapse) {
+          titleScramble.textContent = scrambleTarget;
+          return;
         }
-
-        let marqueesBehind = [];
-        let marqueesFront = [];
-
-        function initMarquees() {
-            marqueesBehind = [
-                new Marquee("QUANTUM KEY DISTRIBUTION", 0.12, 2.6, -1, 48, 0.052),
-                new Marquee("BB84 PROTOCOL", 0.31, 1.9, 1, 38, 0.046),
-                new Marquee("POLARISED PHOTONS • ENTANGLEMENT", 0.69, 2.8, -1, 52, 0.058)
-            ];
-            marqueesFront = [
-                new Marquee("ENGINEERED BY AGHA • SIMULATOR", 0.88, 1.65, 1, 33, 0.038)
-            ];
+        scrambleHold++;
+        if (scrambleHold % 3 !== 0) return;
+        const base = scrambleTarget.split('');
+        const out = base.map((ch, i) => {
+          if (ch === '.' || ch === ' ') return ch;
+          const chaos = Math.random();
+          if (chaos < 0.74) return ch;
+          if (chaos < 0.88) return scrambleGlyphs[(Math.random() * scrambleGlyphs.length) | 0];
+          return base[(Math.random() * base.length) | 0];
+        }).join('');
+        titleScramble.textContent = out;
+        const tx = rnd(4, -4);
+        const ty = rnd(2.5, -2.5);
+        titleScramble.style.clipPath = `inset(${rnd(48,0)}% 0 ${rnd(48,0)}% 0)`;
+        titleScramble.style.textShadow = `${tx}px 0 rgba(255,90,90,0.45), ${-tx}px 0 rgba(90,180,255,0.4), 0 0 18px rgba(209,122,58,0.18)`;
+        if (Math.random() > 0.65) {
+          titleMain.style.transform += ` translate(${tx * 0.2}px, ${ty * 0.2}px)`;
         }
+      }
+      setInterval(tickGlitch, 80);
+      setInterval(() => {
+        titleScramble.style.clipPath = 'none';
+        titleScramble.style.textShadow = '0 0 18px rgba(209,122,58,0.18)';
+      }, 220);
 
-        let mouseX = w / 2;
-        let mouseY = h / 2;
-        let mouseVel = 0;
-        let lastMouseX = mouseX;
-        let lastMouseY = mouseY;
+      const audio = {
+        ctx: null,
+        master: null,
+        humGain: null,
+        humOscA: null,
+        humOscB: null,
+        droneFilter: null,
+        wobble: null,
+        shimmerGain: null
+      };
 
-        // Procedural Web Audio API
-        let audioCtx, humOsc, humGain, noiseNode;
-        
-        function initAudio() {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Deep subsonic quantum hum
-            humOsc = audioCtx.createOscillator();
-            humOsc.type = 'sine';
-            humOsc.frequency.setValueAtTime(32, audioCtx.currentTime);
-            
-            humGain = audioCtx.createGain();
-            humGain.gain.value = 0.24;
-            
-            const humFilter = audioCtx.createBiquadFilter();
-            humFilter.type = 'lowpass';
-            humFilter.frequency.value = 140;
-            
-            humOsc.connect(humFilter).connect(humGain).connect(audioCtx.destination);
-            humOsc.start();
-            
-            // Quantum noise layer
-            const bufferSize = audioCtx.sampleRate * 5;
-            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const output = noiseBuffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
-            
-            noiseNode = audioCtx.createBufferSource();
-            noiseNode.buffer = noiseBuffer;
-            noiseNode.loop = true;
-            
-            const noiseGain = audioCtx.createGain();
-            noiseGain.gain.value = 0.032;
-            
-            const noiseFilter = audioCtx.createBiquadFilter();
-            noiseFilter.type = 'bandpass';
-            noiseFilter.frequency.value = 860;
-            noiseFilter.Q.value = 1.4;
-            
-            noiseNode.connect(noiseFilter).connect(noiseGain).connect(audioCtx.destination);
-            noiseNode.start();
+      function initialiseAudio() {
+        if (audioReady) return;
+        const AudioContextRef = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextRef) return;
+        audio.ctx = new AudioContextRef();
+        const ctx = audio.ctx;
+        audio.master = ctx.createGain();
+        audio.master.gain.value = 0.42;
+        audio.master.connect(ctx.destination);
+
+        audio.humGain = ctx.createGain();
+        audio.humGain.gain.value = 0.12;
+        audio.droneFilter = ctx.createBiquadFilter();
+        audio.droneFilter.type = 'lowpass';
+        audio.droneFilter.frequency.value = 220;
+        audio.wobble = ctx.createBiquadFilter();
+        audio.wobble.type = 'bandpass';
+        audio.wobble.frequency.value = 78;
+        audio.wobble.Q.value = 0.7;
+
+        audio.humOscA = ctx.createOscillator();
+        audio.humOscB = ctx.createOscillator();
+        audio.humOscA.type = 'sine';
+        audio.humOscB.type = 'triangle';
+        audio.humOscA.frequency.value = 34;
+        audio.humOscB.frequency.value = 41.2;
+
+        const detuneLfo = ctx.createOscillator();
+        const detuneGain = ctx.createGain();
+        detuneLfo.type = 'sine';
+        detuneLfo.frequency.value = 0.18;
+        detuneGain.gain.value = 7;
+        detuneLfo.connect(detuneGain);
+        detuneGain.connect(audio.humOscB.detune);
+
+        audio.humOscA.connect(audio.droneFilter);
+        audio.humOscB.connect(audio.droneFilter);
+        audio.droneFilter.connect(audio.wobble);
+        audio.wobble.connect(audio.humGain);
+        audio.humGain.connect(audio.master);
+
+        const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(Math.random(), 1.6);
+        const noiseSource = ctx.createBufferSource();
+        noiseSource.buffer = noiseBuffer;
+        noiseSource.loop = true;
+        const noiseFilter = ctx.createBiquadFilter();
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.value = 2400;
+        noiseFilter.Q.value = 0.8;
+        audio.shimmerGain = ctx.createGain();
+        audio.shimmerGain.gain.value = 0.014;
+        noiseSource.connect(noiseFilter);
+        noiseFilter.connect(audio.shimmerGain);
+        audio.shimmerGain.connect(audio.master);
+
+        audio.humOscA.start();
+        audio.humOscB.start();
+        detuneLfo.start();
+        noiseSource.start();
+        audioReady = true;
+      }
+
+      function updateAudioFromMouse() {
+        if (!audioReady || !audio.ctx) return;
+        const ctx = audio.ctx;
+        const normX = mouse.x / w;
+        const normY = mouse.y / h;
+        const speedFactor = clamp(mouse.speed / 32, 0, 1.4);
+        const base = 30 + normX * 12 + (1 - normY) * 6 + speedFactor * 8;
+        audio.humOscA.frequency.setTargetAtTime(base, ctx.currentTime, 0.22);
+        audio.humOscB.frequency.setTargetAtTime(base * 1.215, ctx.currentTime, 0.22);
+        audio.droneFilter.frequency.setTargetAtTime(140 + normX * 220 + speedFactor * 130, ctx.currentTime, 0.24);
+        audio.humGain.gain.setTargetAtTime(0.09 + speedFactor * 0.08 + mouse.proximity * 0.05, ctx.currentTime, 0.3);
+        audio.shimmerGain.gain.setTargetAtTime(0.01 + speedFactor * 0.012, ctx.currentTime, 0.3);
+      }
+
+      function playUIBlip(kind = 'hover') {
+        if (!audioReady || !audio.ctx) return;
+        const ctx = audio.ctx;
+        const osc = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        osc.type = kind === 'glitch' ? 'square' : 'sawtooth';
+        osc2.type = 'triangle';
+        const startFreq = kind === 'click' ? 980 : kind === 'glitch' ? 1320 : 880;
+        const endFreq = kind === 'glitch' ? 240 : 420;
+        osc.frequency.setValueAtTime(startFreq, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(endFreq, ctx.currentTime + 0.08);
+        osc2.frequency.setValueAtTime(startFreq * 1.37, ctx.currentTime);
+        osc2.frequency.exponentialRampToValueAtTime(endFreq * 0.65, ctx.currentTime + 0.06);
+        filter.type = 'highpass';
+        filter.frequency.value = kind === 'click' ? 700 : 980;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(kind === 'click' ? 0.065 : 0.04, ctx.currentTime + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + (kind === 'click' ? 0.12 : 0.09));
+        osc.connect(filter); osc2.connect(filter); filter.connect(gain); gain.connect(audio.master);
+        osc.start(); osc2.start();
+        osc.stop(ctx.currentTime + 0.14); osc2.stop(ctx.currentTime + 0.14);
+      }
+
+      function playCollapseSweep() {
+        if (!audioReady || !audio.ctx) return;
+        const ctx = audio.ctx;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const shaper = ctx.createWaveShaper();
+        const curve = new Float32Array(256);
+        for (let i = 0; i < curve.length; i++) {
+          const x = i / 255 * 2 - 1;
+          curve[i] = Math.tanh(x * 3.6);
         }
+        shaper.curve = curve;
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 1.5);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.6);
+        osc.connect(shaper); shaper.connect(gain); gain.connect(audio.master);
+        osc.start(); osc.stop(ctx.currentTime + 1.7);
 
-        function updateHum(pitchMod) {
-            if (!humOsc) return;
-            const target = 30 + pitchMod * 28;
-            humOsc.frequency.setTargetAtTime(target, audioCtx.currentTime, 0.22);
-            humGain.gain.setTargetAtTime(0.16 + pitchMod * 0.2, audioCtx.currentTime, 0.15);
+        audio.master.gain.cancelScheduledValues(ctx.currentTime);
+        audio.master.gain.setValueAtTime(audio.master.gain.value, ctx.currentTime);
+        audio.master.gain.linearRampToValueAtTime(0.95, ctx.currentTime + 1.2);
+        audio.master.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 2.1);
+      }
+
+      function onPointerMove(clientX, clientY) {
+        mouse.px = mouse.x;
+        mouse.py = mouse.y;
+        mouse.x = clientX;
+        mouse.y = clientY;
+        mouse.vx = mouse.x - mouse.px;
+        mouse.vy = mouse.y - mouse.py;
+        mouse.speed = Math.hypot(mouse.vx, mouse.vy);
+        mouse.intensity = clamp(mouse.speed / 40, 0, 1.2);
+        shock = Math.max(shock, clamp(mouse.speed / 100, 0, 0.2));
+        updateAudioFromMouse();
+      }
+
+      window.addEventListener('mousemove', (event) => onPointerMove(event.clientX, event.clientY));
+      window.addEventListener('touchmove', (event) => {
+        const t = event.touches[0];
+        if (t) onPointerMove(t.clientX, t.clientY);
+      }, { passive: true });
+      window.addEventListener('mousedown', () => { mouse.down = true; initialiseAudio(); playUIBlip('click'); });
+      window.addEventListener('mouseup', () => { mouse.down = false; });
+      window.addEventListener('mouseleave', () => { mouse.down = false; });
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          beginCollapse();
         }
+      });
 
-        // Continuous digital glitch + scramble on title
-        function glitchTitle() {
-            const title = document.querySelector('.title');
-            setInterval(() => {
-                if (Math.random() > 0.65) {
-                    const scramble = Math.random() > 0.5 ? 'BB84.qkd' : 'BB84.qkd'.split('').sort(() => Math.random() - 0.5).join('');
-                    title.setAttribute('data-text', scramble);
-                    title.style.transform = `translate(${Math.random()*7-3.5}px, ${Math.random()*4-2}px)`;
-                    setTimeout(() => {
-                        title.setAttribute('data-text', 'BB84.qkd');
-                        title.style.transform = '';
-                    }, 95);
-                }
-            }, 340);
+      launchBtn.addEventListener('mouseenter', () => {
+        initialiseAudio();
+        playUIBlip('hover');
+        cursorRing.classList.add('active');
+      });
+      launchBtn.addEventListener('mouseleave', () => cursorRing.classList.remove('active'));
+      launchBtn.addEventListener('focus', () => { initialiseAudio(); playUIBlip('hover'); });
+      launchBtn.addEventListener('click', () => {
+        initialiseAudio();
+        playUIBlip('click');
+        beginCollapse();
+      });
+
+      const terminalMessages = [
+        'Calibrating basis lattice...',
+        'Sampling photon stream...',
+        'Awaiting operator handshake...'
+      ];
+      let terminalIndex = 0;
+      setInterval(() => {
+        if (collapse) return;
+        terminal.textContent = terminalMessages[terminalIndex % terminalMessages.length];
+        terminalIndex++;
+      }, 2800);
+
+      async function typeTerminal(message, speed = 36) {
+        terminal.classList.add('typing');
+        terminal.textContent = '';
+        for (let i = 0; i < message.length; i++) {
+          terminal.textContent += message[i];
+          if (i % 4 === 0) playUIBlip('glitch');
+          await new Promise((resolve) => setTimeout(resolve, speed));
         }
+        terminal.classList.remove('typing');
+      }
 
-        // 3D magnetic tilt with independent parallax
-        function applyMagneticTilt(e) {
-            const consoleEl = document.getElementById('console');
-            const rect = consoleEl.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
-            
-            const rotX = (cy - e.clientY) / 14;
-            const rotY = (e.clientX - cx) / 19;
-            
-            consoleEl.style.transform = `perspective(1600px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
-        }
-
-        // Cinematic Quantum Collapse transition
-        let isLaunching = false;
-        
-        function triggerQuantumCollapse() {
-            if (isLaunching) return;
-            isLaunching = true;
-            
-            const btn = document.getElementById('launch-btn');
-            const terminal = document.getElementById('terminal');
-            
-            btn.style.pointerEvents = 'none';
-            btn.style.opacity = '0.2';
-            
-            // Audio crescendo
-            if (humGain) {
-                humGain.gain.cancelScheduledValues(audioCtx.currentTime);
-                humGain.gain.setValueAtTime(humGain.gain.value, audioCtx.currentTime);
-                humGain.gain.linearRampToValueAtTime(2.8, audioCtx.currentTime + 2);
-            }
-            
-            // Aggressive vortex
-            gsap.to(photons, {
-                duration: 2.4,
-                ease: "power4.in",
-                onUpdate: () => {
-                    photons.forEach(p => {
-                        p.vx *= 0.74;
-                        p.vy *= 0.74;
-                        const dx = w/2 - p.x;
-                        const dy = h/2 - p.y;
-                        const dist = Math.hypot(dx, dy) || 1;
-                        p.vx += (dx / dist) * 48;
-                        p.vy += (dy / dist) * 48;
-                    });
-                }
-            });
-            
-            // Terminal sequence
-            terminal.style.opacity = '1';
-            const messages = [
-                "ENTANGLEMENT ACHIEVED... WELCOME AGHA",
-                "POLARISATION BASIS SYNCHRONISED...",
-                "QUANTUM CHANNEL SECURED...",
-                "KEY DISTRIBUTION PROTOCOL ACTIVE"
-            ];
-            let i = 0;
-            const typeInterval = setInterval(() => {
-                if (i < messages.length) {
-                    terminal.textContent = messages[i];
-                    i++;
-                } else {
-                    clearInterval(typeInterval);
-                    setTimeout(() => {
-                        const flash = document.createElement('div');
-                        flash.style.cssText = 'position:fixed;inset:0;background:#d17a3a;opacity:0.98;z-index:99999;pointer-events:none;mix-blend-mode:screen;';
-                        document.body.appendChild(flash);
-                        gsap.to(flash, {
-                            opacity: 0,
-                            duration: 0.7,
-                            ease: "power2.out",
-                            onComplete: () => {
-                                window.location.href = "/go.html";
-                            }
-                        });
-                    }, 1100);
-                }
-            }, 360);
-        }
-
-        // Custom cursor
-        function initCursor() {
-            const cursor = document.getElementById('cursor');
-            document.addEventListener('mousemove', e => {
-                cursor.style.left = `${e.clientX}px`;
-                cursor.style.top = `${e.clientY}px`;
-                
-                mouseVel = Math.hypot(e.clientX - lastMouseX, e.clientY - lastMouseY);
-                lastMouseX = e.clientX;
-                lastMouseY = e.clientY;
-                mouseX = e.clientX;
-                mouseY = e.clientY;
-                
-                applyMagneticTilt(e);
-            });
-            
-            const btn = document.getElementById('launch-btn');
-            btn.addEventListener('mouseenter', () => cursor.classList.add('active'));
-            btn.addEventListener('mouseleave', () => cursor.classList.remove('active'));
-        }
-
-        // Main animation loop
-        function animate() {
-            ctx.fillStyle = 'rgba(5, 2, 0, 0.16)';
-            ctx.fillRect(0, 0, w, h);
-
-            const force = Math.min(mouseVel * 1.1, 36);
-
-            // Behind marquees
-            marqueesBehind.forEach(m => {
-                m.update();
-                m.draw(ctx, w, h);
-            });
-
-            // Photons
-            photons.forEach(photon => {
-                photon.update(mouseX, mouseY, force);
-                photon.draw();
-            });
-
-            // Sparse entanglement connections
-            ctx.save();
-            ctx.globalAlpha = 0.032;
-            ctx.strokeStyle = '#d17a3a';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < PHOTON_COUNT; i += 9) {
-                const p1 = photons[i];
-                for (let j = i + 2; j < i + 32 && j < PHOTON_COUNT; j++) {
-                    const p2 = photons[j];
-                    const d = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-                    if (d > 42 && d < 178) {
-                        ctx.beginPath();
-                        ctx.moveTo(p1.x, p1.y);
-                        ctx.lineTo(p2.x, p2.y);
-                        ctx.stroke();
-                    }
-                }
-            }
-            ctx.restore();
-
-            // In-front marquees
-            marqueesFront.forEach(m => {
-                m.update();
-                m.draw(ctx, w, h);
-            });
-
-            // Rebirth photons
-            if (Math.random() < 0.22) {
-                const p = photons[Math.floor(Math.random() * photons.length)];
-                p.reset();
-            }
-
-            requestAnimationFrame(animate);
-        }
-
-        function playClickSound() {
-            if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            osc.type = 'sawtooth';
-            osc.frequency.value = 1020;
-            const gain = audioCtx.createGain();
-            gain.gain.value = 0.4;
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.14);
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = 'highpass';
-            filter.frequency.value = 760;
-            osc.connect(filter).connect(gain).connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.2);
-        }
-
-        // Initialise everything
-        window.onload = () => {
-            initAudio();
-            initMarquees();
-            glitchTitle();
-            initCursor();
-            animate();
-
-            document.addEventListener('mousemove', () => {
-                const pitchMod = Math.min(mouseVel / 160, 1.4);
-                updateHum(pitchMod);
-            });
-
-            const launchBtn = document.getElementById('launch-btn');
-            launchBtn.addEventListener('click', () => {
-                playClickSound();
-                triggerQuantumCollapse();
-            });
-
-            document.addEventListener('keydown', e => {
-                if (e.key === "Enter" && !isLaunching) triggerQuantumCollapse();
-            });
-
-            console.log('%cBB84.qkd Quantum Simulator • Engineered by AGHA • British English edition • Ultra-futuristic dark sci-fi', 'color:#d17a3a; font-family:monospace; font-size:11px');
-        };
-    </script>
+      let launched = false;
+      async function beginCollapse() {
+        if (launched) return;
+        launched = true;
+        collapse = true;
+        lockout.style.pointerEvents = 'auto';
+        launchBtn.disabled = true;
+        document.body.style.pointerEvents = 'auto';
+        consoleShell.style.transition = 'transform 800ms cubic-bezier(.16,1,.3,1), filter 800ms cubic-bezier(.16,1,.3,1), opacity 800ms cubic-bezier(.16,1,.3,1)';
+        consolePanel.style.transition = 'transform 800ms cubic-bezier(.16,1,.3,1), opacity 800ms cubic-bezier(.16,1,.3,1)';
+        consoleShell.style.transform = 'perspective(1800px) rotateX(16deg) rotateY(-14deg) scale(0.98)';
+        consolePanel.style.transform = 'translate3d(0, 0, 0) scale(0.985)';
+        playCollapseSweep();
+        shock = 0.85;
+        flashAlpha = 0.9;
+        await new Promise((resolve) => setTimeout(resolve, 760));
+        flash.style.opacity = '1';
+        await new Promise((resolve) => setTimeout(resolve, 130));
+        flash.style.opacity = '0.22';
+        await typeTerminal('ENTANGLEMENT ACHIEVED...', 42);
+        await new Promise((resolve) => setTimeout(resolve, 420));
+        terminal.textContent = 'Redirecting to simulator core...';
+        await new Promise((resolve) => setTimeout(resolve, 360));
+        window.location.href = 'http://127.0.0.1:5500/qiskit/class/bb84/frontend/go.html';
+      }
+    })();
+  </script>
 </body>
 </html>
