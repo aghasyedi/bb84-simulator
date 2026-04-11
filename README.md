@@ -1,5 +1,7 @@
 # BB84 Quantum Key Distribution Simulator
 
+**🌐 Live Interactive Demo:** [bb84qkd.netlify.app](https://bb84qkd.netlify.app/)
+
 An interactive, research-grade educational web application designed to simulate and visualise the BB84 QKD protocol from end to end.
 
 ## Overview
