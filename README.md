@@ -2,7 +2,7 @@
 
 **🌐 Live Interactive Demo:** [Website](https://bb84qkd.netlify.app/)
 
-**🌐 Presentation:** [Presentation]([https://bb84qkd.netlify.app/](https://bb84qkd.netlify.app/bb84_qkd_presentation.html))
+**🌐 Presentation:** [Presentation](https://bb84qkd.netlify.app/bb84_qkd_presentation.html)
 
 An interactive, research-grade educational web application designed to simulate and visualise the BB84 QKD protocol from end to end.
 
