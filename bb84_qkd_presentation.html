@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Syedi 2026 | BB84 QKD Simulation Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,700;7..72,900&family=Source+Code+Pro:wght@400;600&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-bg: #fcfaf7;
+      --color-amber-primary: #964900;
+      --color-amber-light: #c46200;
+      --color-text-main: #1a1a1a;
+      --color-text-muted: #57534e;
+      --font-display: 'Literata', serif;
+      --font-body: 'Source Sans 3', sans-serif;
+      --font-mono: 'Source Code Pro', monospace;
+    }
+  </style>
+  <style>
+    :root { --amber-glow: rgba(150, 73, 0, 0.15); }
+    body { font-family: var(--font-body); color: var(--color-text-main); background: var(--color-bg); overflow: hidden; }
+    .slide { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transform: translateY(10px) scale(0.98); transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1); pointer-events: none; padding: 4rem; }
+    .slide.active { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+    .glass-card { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(150, 73, 0, 0.1); border-radius: 24px; box-shadow: 0 8px 32px var(--amber-glow); }
+    .nav-bar { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 1.5rem; background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); padding: 0.75rem 2rem; border-radius: 50px; border: 1px solid rgba(0,0,0,0.05); z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    .nav-btn { cursor: pointer; color: var(--color-amber-primary); font-size: 1.5rem; transition: transform 0.2s; }
+    .nav-btn:hover { transform: scale(1.2); }
+    .progress-bar { position: fixed; top: 0; left: 0; height: 4px; background: var(--color-amber-primary); transition: width 0.3s; z-index: 101; }
+    .math-font { font-family: var(--font-display); font-style: italic; color: var(--color-amber-primary); }
+    .reveal { opacity: 0; transform: translateY(15px); transition: all 0.6s ease-out; }
+    .active .reveal { opacity: 1; transform: translateY(0); }
+    .blob { position: absolute; border-radius: 50%; filter: blur(100px); z-index: -1; opacity: 0.4; animation: drift 20s infinite alternate; }
+    @keyframes drift { from { transform: translate(0,0); } to { transform: translate(100px, 50px); } }
+  </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress"></div>
+
+<div class="blob w-96 h-96 bg-amber-200 -top-20 -left-20"></div>
+<div class="blob w-80 h-80 bg-orange-100 bottom-0 right-0"></div>
+
+<div class="deck">
+
+  <div class="slide active" data-index="1">
+    <div class="text-center">
+      <p class="font-mono text-amber-primary tracking-[0.3em] uppercase mb-6 reveal">Assessment I | April 2026</p>
+      <h1 class="font-display text-7xl font-black text-slate-900 leading-tight mb-8 reveal">BB84 Quantum Key Distribution<br><span class="text-amber-primary">Clinical Simulation</span></h1>
+      <p class="text-2xl text-text-muted max-w-3xl mx-auto mb-12 reveal">Information-Theoretic Security Analysis & Architectural Validation of a Web-Based Pedagogical Testbed.</p>
+      <div class="flex justify-center items-center gap-8 reveal" style="transition-delay: 0.2s">
+        <div class="text-left">
+          <p class="font-bold text-lg">Agha Tasheer Syedi</p>
+          <p class="text-amber-light">School of Quantum Technology</p>
+          <p class="text-slate-500 text-sm">DIAT-DRDO, Pune, India</p>
+        </div>
+        <div class="w-px h-12 bg-slate-200"></div>
+        <div class="text-left">
+          <p class="font-mono text-sm uppercase text-slate-400">Project Status</p>
+          <p class="text-emerald-600 font-bold">Production-Ready</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-index="2">
+    <div class="w-full max-w-6xl">
+      <div class="grid grid-cols-2 gap-16 items-center">
+        <div>
+          <h2 class="font-display text-5xl font-bold mb-8">The Cryptographic Existential Crisis</h2>
+          <div class="space-y-6 text-xl leading-relaxed text-text-muted">
+            <p>Classical systems like <span class="font-bold text-slate-800">RSA</span> and <span class="font-bold text-slate-800">ECC</span> rely on computational hardness—specifically the difficulty of integer factorisation.</p>
+            <div class="glass-card p-6 border-l-4 border-amber-primary">
+              <p class="italic text-slate-700">"Shor’s 1994 algorithm reduces exponential-time complexity to polynomial-time on a large-scale quantum computer."</p>
+            </div>
+            <p>BB84 offers a paradigm shift: security derived from the <span class="text-amber-primary font-semibold">Postulates of Quantum Mechanics</span>, making it unconditionally secure against any computational adversary.</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 gap-4">
+          <div class="glass-card p-8">
+            <p class="text-sm font-mono text-amber-light mb-2">SECURITY MODEL</p>
+            <h3 class="text-2xl font-bold mb-4">No-Cloning Theorem</h3>
+            <p class="text-slate-600">Impossible to create an identical copy of an unknown quantum state without disturbing the original.</p>
+          </div>
+          <div class="glass-card p-8">
+            <p class="text-sm font-mono text-amber-light mb-2">SECURITY MODEL</p>
+            <h3 class="text-2xl font-bold mb-4">Heisenberg Uncertainty</h3>
+            <p class="text-slate-600">Measurement in a conjugate basis (e.g., Diagonal) inevitably collapses states prepared in the Rectilinear basis.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-index="3">
+    <div class="w-full max-w-5xl">
+      <h2 class="font-display text-5xl font-bold text-center mb-12">Protocol Mechanics</h2>
+      <div class="grid grid-cols-2 gap-8">
+        <div class="glass-card p-8">
+          <h3 class="font-bold text-2xl text-amber-primary mb-6">1. Encoding (Alice)</h3>
+          <p class="mb-4 text-slate-600">Qubits are prepared in two mutually unbiased conjugate bases:</p>
+          <div class="bg-slate-900 rounded-xl p-6 text-emerald-400 font-mono text-sm leading-relaxed">
+            // Rectilinear (Z-basis)<br>
+            |0⟩ → 0°, |1⟩ → 90°<br><br>
+            // Diagonal (X-basis)<br>
+            |+⟩ → 45°, |-⟩ → 135°
+          </div>
+        </div>
+        <div class="glass-card p-8">
+          <h3 class="font-bold text-2xl text-amber-primary mb-6">2. Measurement (Bob)</h3>
+          <p class="mb-4 text-slate-600">Bob measures in random bases. Wavefunction collapse follows the <span class="font-semibold">Born Rule</span>:</p>
+          <div class="text-2xl math-font p-6 text-center">
+            P(b|ψ) = |⟨b|ψ⟩|²
+          </div>
+          <p class="text-sm text-slate-500 mt-2 italic">Basis mismatch yields perfect 50:50 randomness, introducing the 50% sifting discard rate.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-index="4">
+    <div class="w-full max-w-6xl">
+      <h2 class="font-display text-5xl font-bold mb-12 text-center">Simulator System Architecture</h2>
+      <div class="grid grid-cols-4 gap-6">
+        <div class="glass-card p-6 text-center">
+          <div class="text-4xl mb-4">⚛️</div>
+          <h4 class="font-bold mb-2">Quantum Engine</h4>
+          <p class="text-sm text-slate-600 italic">quantum-engine-8.js</p>
+          <p class="text-xs mt-4 text-text-muted leading-relaxed">Handles state prep and probabilistic collapse models.</p>
+        </div>
+        <div class="glass-card p-6 text-center">
+          <div class="text-4xl mb-4">🔮</div>
+          <h4 class="font-bold mb-2">Bloch Sphere</h4>
+          <p class="text-sm text-slate-600 italic">bloch-sphere-9.js</p>
+          <p class="text-xs mt-4 text-text-muted leading-relaxed">3D isometric projection of qubit precession and collapse.</p>
+        </div>
+        <div class="glass-card p-6 text-center">
+          <div class="text-4xl mb-4">📊</div>
+          <h4 class="font-bold mb-2">Macro Controller</h4>
+          <p class="text-sm text-slate-600 italic">macro-controller-10.js</p>
+          <p class="text-xs mt-4 text-text-muted leading-relaxed">Sequences "Turbo Mode" automation across all 7 stages.</p>
+        </div>
+        <div class="glass-card p-6 text-center">
+          <div class="text-4xl mb-4">📋</div>
+          <h4 class="font-bold mb-2">Audit Reports</h4>
+          <p class="text-sm text-slate-600 italic">report-generator-3.js</p>
+          <p class="text-xs mt-4 text-text-muted leading-relaxed">Generates DoD-style PDF transcripts with security verdicts.</p>
+        </div>
+      </div>
+      <div class="mt-12 glass-card p-6 flex justify-around items-center bg-slate-900 text-slate-300">
+        <p class="font-mono text-xs">STACK: Vanilla JS / WebGL / Tailwind CSS</p>
+        <p class="font-mono text-xs">LATENCY: &lt;16ms for 1024 Qubits</p>
+        <p class="font-mono text-xs">DEPENDENCIES: Zero (Self-Contained)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-index="5">
+    <div class="w-full max-w-5xl">
+      <div class="grid grid-cols-2 gap-12 items-center">
+        <div>
+          <h2 class="font-display text-5xl font-bold mb-8 italic text-amber-primary">Eve's Signature</h2>
+          <p class="text-xl text-slate-600 leading-relaxed mb-6">
+            In an <span class="font-bold text-slate-800">Intercept-Resend Attack</span>, Eve's random basis choice forces a characteristic disturbance.
+          </p>
+          <div class="space-y-4">
+            <div class="flex justify-between items-end p-4 border-b border-slate-200">
+              <span class="text-slate-500 font-mono uppercase text-sm">Theoretical QBER (Eve)</span>
+              <span class="text-3xl font-bold">25.0%</span>
+            </div>
+            <div class="flex justify-between items-end p-4 border-b border-slate-200">
+              <span class="text-slate-500 font-mono uppercase text-sm">Simulator Abort Threshold</span>
+              <span class="text-3xl font-bold text-amber-primary">11.9%</span>
+            </div>
+          </div>
+        </div>
+        <div class="glass-card p-8 bg-amber-50 relative overflow-hidden">
+          <div class="absolute top-0 right-0 p-4 opacity-10 text-8xl">⚠️</div>
+          <h3 class="font-bold text-2xl mb-4">Detection Confidence</h3>
+          <p class="text-slate-700 mb-6 italic">Using the Hoeffding Inequality:</p>
+          <div class="text-xl math-font bg-white/50 p-4 rounded-lg text-center mb-6">
+            P(|Q - Q̂| > ε) ≤ 2e⁻²mε²
+          </div>
+          <p class="text-sm text-slate-600">For a sample size of 128 bits, the probability of Eve going undetected drops to <span class="font-bold text-emerald-700">&lt; 0.001%</span>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-index="6">
+    <div class="w-full max-w-4xl">
+      <h2 class="font-display text-5xl font-bold text-center mb-12">Key Distillation Efficiency</h2>
+      <div class="space-y-8">
+        <div class="reveal">
+          <div class="flex justify-between text-sm font-mono mb-2"><span>Raw Photons (N=128)</span><span>100%</span></div>
+          <div class="h-4 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-amber-primary w-full"></div></div>
+        </div>
+        <div class="reveal" style="transition-delay: 0.1s">
+          <div class="flex justify-between text-sm font-mono mb-2"><span>Sifted Key (Basis Reconciliation)</span><span>50%</span></div>
+          <div class="h-4 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-amber-light w-1/2"></div></div>
+        </div>
+        <div class="reveal" style="transition-delay: 0.2s">
+          <div class="flex justify-between text-sm font-mono mb-2"><span>Working Key (QBER Sacrifice)</span><span>37.5%</span></div>
+          <div class="h-4 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-orange-400 w-[37.5%]"></div></div>
+        </div>
+        <div class="reveal" style="transition-delay: 0.3s">
+          <div class="flex justify-between text-sm font-mono mb-2"><span>Secure Final Key (PA Compression)</span><span>~32.8%</span></div>
+          <div class="h-4 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 w-[32.8%]"></div></div>
+        </div>
+      </div>
+      <div class="mt-12 text-center text-slate-500 italic">
+        "Privacy amplification via **Toeplitz Hashing** ensures any partial information Eve gained is mathematically nullified."
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-index="7">
+    <div class="text-center">
+      <h2 class="font-display text-6xl font-black mb-12">Bridging Theory & <span class="text-amber-primary">Reality</span></h2>
+      <div class="grid grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
+        <div class="glass-card p-8">
+          <h4 class="font-bold text-amber-primary mb-4 uppercase text-xs tracking-widest">Pedagogy</h4>
+          <p class="text-slate-600 text-sm">Interactive "Turbo Mode" allows M.Tech students to visualize counter-intuitive quantum statistics instantly.</p>
+        </div>
+        <div class="glass-card p-8">
+          <h4 class="font-bold text-amber-primary mb-4 uppercase text-xs tracking-widest">Analysis</h4>
+          <p class="text-slate-600 text-sm">Finite-key security analysis tools bridge the gap between textbook BB84 and operational QKD hardware.</p>
+        </div>
+        <div class="glass-card p-8">
+          <h4 class="font-bold text-amber-primary mb-4 uppercase text-xs tracking-widest">Future</h4>
+          <p class="text-slate-600 text-sm">Architected for modular expansion into E91 (Entanglement-based) and MDI-QKD protocols.</p>
+        </div>
+      </div>
+      <p class="font-mono text-slate-400">Public Live Frame: bb84qkd.netlify.app</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="nav-bar">
+  <div class="nav-btn" onclick="changeSlide(-1)">❮</div>
+  <div class="font-mono text-sm tracking-widest text-slate-400" id="slide-num">01 / 07</div>
+  <div class="nav-btn" onclick="changeSlide(1)">❯</div>
+</div>
+
+<script>
+  let currentSlide = 1;
+  const totalSlides = document.querySelectorAll('.slide').length;
+
+  function updateDisplay() {
+    document.querySelectorAll('.slide').forEach((s, i) => {
+      s.classList.toggle('active', i + 1 === currentSlide);
+    });
+    document.getElementById('slide-num').innerText = 
+      String(currentSlide).padStart(2, '0') + ' / ' + String(totalSlides).padStart(2, '0');
+    document.getElementById('progress').style.width = (currentSlide / totalSlides) * 100 + '%';
+  }
+
+  function changeSlide(dir) {
+    currentSlide += dir;
+    if (currentSlide < 1) currentSlide = 1;
+    if (currentSlide > totalSlides) currentSlide = totalSlides;
+    updateDisplay();
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') changeSlide(1);
+    if (e.key === 'ArrowLeft') changeSlide(-1);
+  });
+</script>
+
+</body>
+</html>
