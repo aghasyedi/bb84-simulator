@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BB84.qkd — Quantum Key Distribution Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+
+        :root {
+            --void: #050200;
+            --copper: #d17a3a;
+            --copper-dark: #7a3a00;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body, html {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: var(--void);
+            color: #fff;
+            font-family: 'IBM Plex Mono', monospace;
+            cursor: none;
+        }
+
+        canvas#quantum-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            mix-blend-mode: screen;
+        }
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            background: radial-gradient(circle at center, transparent 35%, rgba(5,2,0,0.92) 100%);
+        }
+
+        #content {
+            position: relative;
+            z-index: 10;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .console {
+            width: 740px;
+            max-width: 92vw;
+            background: rgba(10, 5, 2, 0.72);
+            backdrop-filter: blur(42px);
+            border: 1px solid rgba(209, 122, 58, 0.32);
+            border-radius: 32px;
+            padding: 68px 60px;
+            box-shadow: 
+                0 0 160px -40px rgba(209, 122, 58, 0.7),
+                inset 0 0 100px rgba(122, 58, 0, 0.22),
+                0 30px 60px rgba(0,0,0,0.7);
+            position: relative;
+            overflow: hidden;
+            pointer-events: auto;
+            transition: transform 0.06s linear;
+        }
+
+        .console::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: 
+                linear-gradient(transparent, rgba(209,122,58,0.04)),
+                repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(209,122,58,0.022) 4px, rgba(209,122,58,0.022) 8px);
+            pointer-events: none;
+            z-index: 1;
+            mix-blend-mode: overlay;
+        }
+
+        .console::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 36px;
+            background: linear-gradient(135deg, transparent, rgba(209,122,58,0.5), transparent);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            animation: chromatic-aberration 5s linear infinite;
+        }
+
+        @keyframes chromatic-aberration {
+            0%   { transform: translate(0,0); }
+            15%  { transform: translate(4px, -2px); }
+            35%  { transform: translate(-3px, 4px); }
+            55%  { transform: translate(3px, -3px); }
+            75%  { transform: translate(-2px, 2px); }
+            100% { transform: translate(0,0); }
+        }
+
+        .subtitle {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            letter-spacing: 10px;
+            color: #d17a3a;
+            text-transform: uppercase;
+            opacity: 0.92;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(4.2rem, 10vw, 8rem);
+            font-weight: 900;
+            letter-spacing: -7px;
+            text-align: center;
+            line-height: 0.8;
+            color: #fff;
+            text-shadow: 
+                0 0 50px #d17a3a,
+                0 0 100px rgba(209,122,58,0.7);
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .title::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            color: #d17a3a;
+            opacity: 0.2;
+            filter: blur(12px);
+            animation: digital-glitch 0.55s infinite linear alternate;
+        }
+
+        @keyframes digital-glitch {
+            0%   { clip-path: inset(0 0 0 0); }
+            8%   { clip-path: inset(18% 0 62% 0); }
+            18%  { clip-path: inset(62% 0 18% 0); }
+            28%  { clip-path: inset(28% 0 52% 0); }
+            38%  { clip-path: inset(0 0 0 0); }
+            100% { clip-path: inset(0 0 0 0); }
+        }
+
+        .description {
+            text-align: center;
+            color: #aaa;
+            font-size: 1.4rem;
+            letter-spacing: 5px;
+            margin-bottom: 32px;
+            font-weight: 300;
+        }
+
+        .engineered-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin: 0 auto 42px;
+            padding: 9px 36px;
+            background: rgba(209,122,58,0.1);
+            border: 1px solid rgba(209,122,58,0.4);
+            border-radius: 9999px;
+            font-size: 0.95rem;
+            letter-spacing: 5px;
+            color: #d17a3a;
+            text-transform: uppercase;
+            font-weight: 500;
+            box-shadow: 0 0 32px rgba(209,122,58,0.5);
+            white-space: nowrap;
+        }
+
+        .launch-btn {
+            display: block;
+            margin: 0 auto;
+            padding: 32px 104px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.55rem;
+            font-weight: 700;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            color: #fff;
+            background: linear-gradient(135deg, #994a00, #7a3a00);
+            border: 2px solid #d17a3a;
+            border-radius: 16px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 80px rgba(209,122,58,0.8);
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .launch-btn:hover {
+            transform: translateY(-6px) scale(1.06);
+            box-shadow: 0 0 120px rgba(209,122,58,1);
+        }
+
+        .launch-btn::before {
+            content: '';
+            position: absolute;
+            top: -70%;
+            left: -180%;
+            width: 70%;
+            height: 340%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+            animation: scanline-shine 3.2s linear infinite;
+        }
+
+        @keyframes scanline-shine {
+            0%   { transform: translateX(-180%); }
+            100% { transform: translateX(450%); }
+        }
+
+        .terminal-line {
+            position: absolute;
+            bottom: 38px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1.05rem;
+            color: #d17a3a;
+            opacity: 0;
+            white-space: nowrap;
+            letter-spacing: 4px;
+            text-shadow: 0 0 15px #d17a3a;
+        }
+
+        .custom-cursor {
+            position: fixed;
+            width: 32px;
+            height: 32px;
+            border: 2px solid rgba(209,122,58,0.75);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 99999;
+            mix-blend-mode: difference;
+            transition: width 0.2s cubic-bezier(0.4,0,0.2,1), height 0.2s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        .custom-cursor.active {
+            width: 18px;
+            height: 18px;
+            background: #d17a3a;
+            box-shadow: 0 0 22px #d17a3a;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="quantum-bg"></canvas>
+    <div id="overlay"></div>
+
+    <div id="content">
+        <div class="console" id="console">
+            <div class="subtitle">Quantum Key Distribution</div>
+            <h1 class="title" data-text="BB84.qkd">BB84.qkd</h1>
+            <div class="description">Interactive BB84 Protocol Simulator</div>
+            
+            <div class="engineered-badge">
+                <span>ENGINEERED BY AGHA</span>
+            </div>
+
+            <button class="launch-btn" id="launch-btn">
+                INITIALISE SYSTEM
+            </button>
+
+            <div class="terminal-line" id="terminal"></div>
+        </div>
+    </div>
+
+    <div class="custom-cursor" id="cursor"></div>
+
+    <script>
+        // =============== QUANTUM BACKGROUND CANVAS ===============
+        const canvas = document.getElementById('quantum-bg');
+        const ctx = canvas.getContext('2d', { alpha: true });
+        
+        let w, h;
+        function resize() {
+            w = window.innerWidth;
+            h = window.innerHeight;
+            canvas.width = w;
+            canvas.height = h;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Advanced Photon class with polarisation and entanglement simulation
+        class Photon {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * w;
+                this.y = Math.random() * h;
+                this.vx = (Math.random() - 0.5) * 2.4;
+                this.vy = (Math.random() - 0.5) * 2.4;
+                this.size = Math.random() * 4 + 1.8;
+                this.life = 1;
+                this.angle = Math.random() * Math.PI * 2;
+                this.spin = (Math.random() - 0.5) * 0.18;
+                this.polarisation = Math.random() > 0.5 ? 0 : Math.PI / 4; // H/V or diagonal
+            }
+            update(mx, my, force) {
+                const dx = mx - this.x;
+                const dy = my - this.y;
+                const dist = Math.hypot(dx, dy) || 1;
+
+                if (dist < 340) {
+                    const repel = (340 - dist) / 340 * force * 0.038;
+                    this.vx -= (dx / dist) * repel;
+                    this.vy -= (dy / dist) * repel;
+                }
+
+                // Central quantum attraction with noise
+                this.vx += (w/2 - this.x) * 0.00018;
+                this.vy += (h/2 - this.y) * 0.00018;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                this.vx *= 0.972;
+                this.vy *= 0.972;
+
+                this.angle += this.spin;
+                this.life = Math.max(0.25, this.life - 0.001);
+
+                // Quantum tunnel boundary
+                if (this.x < 0) this.x = w;
+                if (this.x > w) this.x = 0;
+                if (this.y < 0) this.y = h;
+                if (this.y > h) this.y = 0;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle + this.polarisation);
+
+                // Photon glow field
+                const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 8);
+                grad.addColorStop(0, `hsla(28, 96%, 74%, ${this.life})`);
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size * 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Polarisation vector
+                ctx.strokeStyle = `rgba(209, 122, 58, ${this.life * 0.95})`;
+                ctx.lineWidth = 2.4;
+                ctx.beginPath();
+                ctx.moveTo(-this.size * 4.5, 0);
+                ctx.lineTo(this.size * 4.5, 0);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        let photons = [];
+        const PHOTON_COUNT = 960;
+
+        for (let i = 0; i < PHOTON_COUNT; i++) {
+            photons.push(new Photon());
+        }
+
+        // Kinetic scrolling text layers (behind and in front)
+        class Marquee {
+            constructor(text, yFraction, speed, dir, size, alpha) {
+                this.text = text.toUpperCase() + ' • ';
+                this.yFraction = yFraction;
+                this.speed = speed;
+                this.dir = dir;
+                this.size = size;
+                this.alpha = alpha;
+                this.x = Math.random() * -1200;
+                this.textWidth = 0;
+            }
+            update() {
+                this.x += this.speed * this.dir;
+            }
+            draw(ctx, currentW, currentH) {
+                const y = currentH * this.yFraction;
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = '#d17a3a';
+                ctx.font = `900 ${this.size}px Orbitron, sans-serif`;
+                ctx.textBaseline = 'middle';
+
+                if (this.textWidth === 0) this.textWidth = ctx.measureText(this.text).width || 1400;
+
+                let offset = this.x % this.textWidth;
+                ctx.fillText(this.text, offset, y);
+                ctx.fillText(this.text, offset + this.textWidth, y);
+                ctx.fillText(this.text, offset - this.textWidth, y);
+
+                ctx.restore();
+            }
+        }
+
+        let marqueesBehind = [];
+        let marqueesFront = [];
+
+        function initMarquees() {
+            marqueesBehind = [
+                new Marquee("QUANTUM KEY DISTRIBUTION", 0.12, 2.6, -1, 48, 0.052),
+                new Marquee("BB84 PROTOCOL", 0.31, 1.9, 1, 38, 0.046),
+                new Marquee("POLARISED PHOTONS • ENTANGLEMENT", 0.69, 2.8, -1, 52, 0.058)
+            ];
+            marqueesFront = [
+                new Marquee("ENGINEERED BY AGHA • SIMULATOR", 0.88, 1.65, 1, 33, 0.038)
+            ];
+        }
+
+        let mouseX = w / 2;
+        let mouseY = h / 2;
+        let mouseVel = 0;
+        let lastMouseX = mouseX;
+        let lastMouseY = mouseY;
+
+        // Procedural Web Audio API
+        let audioCtx, humOsc, humGain, noiseNode;
+        
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Deep subsonic quantum hum
+            humOsc = audioCtx.createOscillator();
+            humOsc.type = 'sine';
+            humOsc.frequency.setValueAtTime(32, audioCtx.currentTime);
+            
+            humGain = audioCtx.createGain();
+            humGain.gain.value = 0.24;
+            
+            const humFilter = audioCtx.createBiquadFilter();
+            humFilter.type = 'lowpass';
+            humFilter.frequency.value = 140;
+            
+            humOsc.connect(humFilter).connect(humGain).connect(audioCtx.destination);
+            humOsc.start();
+            
+            // Quantum noise layer
+            const bufferSize = audioCtx.sampleRate * 5;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+            
+            noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = noiseBuffer;
+            noiseNode.loop = true;
+            
+            const noiseGain = audioCtx.createGain();
+            noiseGain.gain.value = 0.032;
+            
+            const noiseFilter = audioCtx.createBiquadFilter();
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.value = 860;
+            noiseFilter.Q.value = 1.4;
+            
+            noiseNode.connect(noiseFilter).connect(noiseGain).connect(audioCtx.destination);
+            noiseNode.start();
+        }
+
+        function updateHum(pitchMod) {
+            if (!humOsc) return;
+            const target = 30 + pitchMod * 28;
+            humOsc.frequency.setTargetAtTime(target, audioCtx.currentTime, 0.22);
+            humGain.gain.setTargetAtTime(0.16 + pitchMod * 0.2, audioCtx.currentTime, 0.15);
+        }
+
+        // Continuous digital glitch + scramble on title
+        function glitchTitle() {
+            const title = document.querySelector('.title');
+            setInterval(() => {
+                if (Math.random() > 0.65) {
+                    const scramble = Math.random() > 0.5 ? 'BB84.qkd' : 'BB84.qkd'.split('').sort(() => Math.random() - 0.5).join('');
+                    title.setAttribute('data-text', scramble);
+                    title.style.transform = `translate(${Math.random()*7-3.5}px, ${Math.random()*4-2}px)`;
+                    setTimeout(() => {
+                        title.setAttribute('data-text', 'BB84.qkd');
+                        title.style.transform = '';
+                    }, 95);
+                }
+            }, 340);
+        }
+
+        // 3D magnetic tilt with independent parallax
+        function applyMagneticTilt(e) {
+            const consoleEl = document.getElementById('console');
+            const rect = consoleEl.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            
+            const rotX = (cy - e.clientY) / 14;
+            const rotY = (e.clientX - cx) / 19;
+            
+            consoleEl.style.transform = `perspective(1600px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+        }
+
+        // Cinematic Quantum Collapse transition
+        let isLaunching = false;
+        
+        function triggerQuantumCollapse() {
+            if (isLaunching) return;
+            isLaunching = true;
+            
+            const btn = document.getElementById('launch-btn');
+            const terminal = document.getElementById('terminal');
+            
+            btn.style.pointerEvents = 'none';
+            btn.style.opacity = '0.2';
+            
+            // Audio crescendo
+            if (humGain) {
+                humGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                humGain.gain.setValueAtTime(humGain.gain.value, audioCtx.currentTime);
+                humGain.gain.linearRampToValueAtTime(2.8, audioCtx.currentTime + 2);
+            }
+            
+            // Aggressive vortex
+            gsap.to(photons, {
+                duration: 2.4,
+                ease: "power4.in",
+                onUpdate: () => {
+                    photons.forEach(p => {
+                        p.vx *= 0.74;
+                        p.vy *= 0.74;
+                        const dx = w/2 - p.x;
+                        const dy = h/2 - p.y;
+                        const dist = Math.hypot(dx, dy) || 1;
+                        p.vx += (dx / dist) * 48;
+                        p.vy += (dy / dist) * 48;
+                    });
+                }
+            });
+            
+            // Terminal sequence
+            terminal.style.opacity = '1';
+            const messages = [
+                "ENTANGLEMENT ACHIEVED... WELCOME AGHA",
+                "POLARISATION BASIS SYNCHRONISED...",
+                "QUANTUM CHANNEL SECURED...",
+                "KEY DISTRIBUTION PROTOCOL ACTIVE"
+            ];
+            let i = 0;
+            const typeInterval = setInterval(() => {
+                if (i < messages.length) {
+                    terminal.textContent = messages[i];
+                    i++;
+                } else {
+                    clearInterval(typeInterval);
+                    setTimeout(() => {
+                        const flash = document.createElement('div');
+                        flash.style.cssText = 'position:fixed;inset:0;background:#d17a3a;opacity:0.98;z-index:99999;pointer-events:none;mix-blend-mode:screen;';
+                        document.body.appendChild(flash);
+                        gsap.to(flash, {
+                            opacity: 0,
+                            duration: 0.7,
+                            ease: "power2.out",
+                            onComplete: () => {
+                                window.location.href = "http://127.0.0.1:5500/qiskit/class/bb84/frontend/go.html";
+                            }
+                        });
+                    }, 1100);
+                }
+            }, 360);
+        }
+
+        // Custom cursor
+        function initCursor() {
+            const cursor = document.getElementById('cursor');
+            document.addEventListener('mousemove', e => {
+                cursor.style.left = `${e.clientX}px`;
+                cursor.style.top = `${e.clientY}px`;
+                
+                mouseVel = Math.hypot(e.clientX - lastMouseX, e.clientY - lastMouseY);
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                
+                applyMagneticTilt(e);
+            });
+            
+            const btn = document.getElementById('launch-btn');
+            btn.addEventListener('mouseenter', () => cursor.classList.add('active'));
+            btn.addEventListener('mouseleave', () => cursor.classList.remove('active'));
+        }
+
+        // Main animation loop
+        function animate() {
+            ctx.fillStyle = 'rgba(5, 2, 0, 0.16)';
+            ctx.fillRect(0, 0, w, h);
+
+            const force = Math.min(mouseVel * 1.1, 36);
+
+            // Behind marquees
+            marqueesBehind.forEach(m => {
+                m.update();
+                m.draw(ctx, w, h);
+            });
+
+            // Photons
+            photons.forEach(photon => {
+                photon.update(mouseX, mouseY, force);
+                photon.draw();
+            });
+
+            // Sparse entanglement connections
+            ctx.save();
+            ctx.globalAlpha = 0.032;
+            ctx.strokeStyle = '#d17a3a';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < PHOTON_COUNT; i += 9) {
+                const p1 = photons[i];
+                for (let j = i + 2; j < i + 32 && j < PHOTON_COUNT; j++) {
+                    const p2 = photons[j];
+                    const d = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                    if (d > 42 && d < 178) {
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            ctx.restore();
+
+            // In-front marquees
+            marqueesFront.forEach(m => {
+                m.update();
+                m.draw(ctx, w, h);
+            });
+
+            // Rebirth photons
+            if (Math.random() < 0.22) {
+                const p = photons[Math.floor(Math.random() * photons.length)];
+                p.reset();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function playClickSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.value = 1020;
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0.4;
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.14);
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 760;
+            osc.connect(filter).connect(gain).connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        // Initialise everything
+        window.onload = () => {
+            initAudio();
+            initMarquees();
+            glitchTitle();
+            initCursor();
+            animate();
+
+            document.addEventListener('mousemove', () => {
+                const pitchMod = Math.min(mouseVel / 160, 1.4);
+                updateHum(pitchMod);
+            });
+
+            const launchBtn = document.getElementById('launch-btn');
+            launchBtn.addEventListener('click', () => {
+                playClickSound();
+                triggerQuantumCollapse();
+            });
+
+            document.addEventListener('keydown', e => {
+                if (e.key === "Enter" && !isLaunching) triggerQuantumCollapse();
+            });
+
+            console.log('%cBB84.qkd Quantum Simulator • Engineered by AGHA • British English edition • Ultra-futuristic dark sci-fi', 'color:#d17a3a; font-family:monospace; font-size:11px');
+        };
+    </script>
+</body>
+</html>
