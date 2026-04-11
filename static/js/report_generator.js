@@ -137,12 +137,21 @@ function collectReportData() {
     // Key lengths
     const numBits = state.numBits || 0;
     const siftedLen = state.siftedKeyA?.length || 0;
-    const workingLen = state.workingKeyA?.length || 0;
-    const finalLen = state.finalSecretKey?.length || 0;
+    const sampledCount = state.sampledIndices?.length || 0;
+
     const bitsRemovedSifting = numBits - siftedLen;
-    const bitsRemovedQBER = state.bitsRemovedInQBER || state.sampledIndices?.length || (siftedLen - workingLen);
+    const bitsRemovedQBER = sampledCount;
+
+    // Intermediate Lengths
+    const postQberLen = siftedLen - sampledCount;
     const bitsRemovedEC = state.bitsRemovedInEC || 0;
-    const bitsRemovedPA = state.bitsRemovedInPA || (workingLen - finalLen - bitsRemovedEC);
+    const postEcLen = Math.max(0, postQberLen - bitsRemovedEC);
+    
+    const bitsRemovedPA = state.bitsRemovedInPA || 0;
+    const finalLen = state.finalSecretKey?.length || (postEcLen - bitsRemovedPA);
+
+    // Legacy support for report functions using workingLen
+    const workingLen = postQberLen;
 
     // QBER
     const qberPct = ((state.qber || 0) * 100).toFixed(2);
@@ -158,9 +167,9 @@ function collectReportData() {
     const leakageProb = state.qber || 0.05;
     const hq = leakageProb > 0 ? (-leakageProb * Math.log2(leakageProb) - (1 - leakageProb) * Math.log2(1 - leakageProb)) : 0;
 
-    // Breakdown Privacy Amplification Purge
-    const rawLeakageBits = Math.floor(workingLen * hq);
-    const safetyMarginBits = Math.max(0, bitsRemovedPA - rawLeakageBits);
+    // Breakdown Privacy Amplification Purge (Apply to Post-EC material)
+    const rawLeakageBits = state.rawLeakageBits || Math.floor(postEcLen * hq);
+    const safetyMarginBits = state.safetyMarginBits || Math.max(0, bitsRemovedPA - rawLeakageBits);
 
     // Key Performance
     const fingerprint = generateKeyFingerprint(state.finalSecretKey);
@@ -168,6 +177,7 @@ function collectReportData() {
     return {
         ts, sessionId, eveStatus, verdict,
         numBits, siftedLen, workingLen, finalLen,
+        postQberLen, postEcLen,
         bitsRemovedSifting, bitsRemovedQBER, bitsRemovedEC, bitsRemovedPA,
         rawLeakageBits, safetyMarginBits,
         qberPct, qberOk, efficiency, noisePct,
@@ -1180,27 +1190,27 @@ function buildReportHTML(d) {
                         <td class="bold">QBER Sampling</td>
                         <td>Statistical error estimation</td>
                         <td class="mono">${d.siftedLen}</td>
-                        <td class="mono amber">${d.sampledCount}</td>
-                        <td class="mono">${d.workingLen}</td>
+                        <td class="mono amber">${d.bitsRemovedQBER}</td>
+                        <td class="mono">${d.postQberLen}</td>
                     </tr>
                     <tr>
                         <td class="bold">Error Correction</td>
                         <td>${d.ecProtocol}</td>
-                        <td class="mono">${d.workingLen}</td>
-                        <td class="mono red">${d.bitsRemovedEC}</td>
-                        <td class="mono">${d.workingLen - d.bitsRemovedEC}</td>
+                        <td class="mono">${d.postQberLen}</td>
+                        <td class="mono green">${d.bitsRemovedEC}</td>
+                        <td class="mono">${d.postEcLen}</td>
                     </tr>
                     <tr>
                         <td class="bold">PA Leakage Purge</td>
                         <td>Entropy Nullification ($n \cdot H(Q)$)</td>
-                        <td class="mono">${d.workingLen - d.bitsRemovedEC}</td>
+                        <td class="mono">${d.postEcLen}</td>
                         <td class="mono amber">${d.rawLeakageBits}</td>
-                        <td class="mono">${d.workingLen - d.bitsRemovedEC - d.rawLeakageBits}</td>
+                        <td class="mono">${d.postEcLen - d.rawLeakageBits}</td>
                     </tr>
                     <tr>
                         <td class="bold">PA Safety Margin</td>
                         <td>Finite-Key Safety Hash</td>
-                        <td class="mono">${d.workingLen - d.bitsRemovedEC - d.rawLeakageBits}</td>
+                        <td class="mono">${d.postEcLen - d.rawLeakageBits}</td>
                         <td class="mono cyan">${d.safetyMarginBits}</td>
                         <td class="mono green">${d.finalLen}</td>
                     </tr>
@@ -1466,6 +1476,7 @@ function buildReportHTML(d) {
  */
 export function generateAuditReport() {
     const data = collectReportData();
+    console.log(data)
     const html = buildReportHTML(data);
 
     // Open in new tab

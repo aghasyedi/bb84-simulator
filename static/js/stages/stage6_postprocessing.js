@@ -237,9 +237,18 @@ class CascadeProtocolHandler {
                 const mid = Math.floor((lo + hi) / 2);
                 const left = indices.slice(lo, mid + 1);
                 const right = indices.slice(mid + 1, hi + 1);
+                
+                // TRACKING: Parity Disclosure
+                // Under 'Direct Disclosure' rule, we only count the reveal if the check is for 1 bit.
+                // We increment parityLeak in the loop that calls binary() to avoid double counting,
+                // or we can increment here if length === 1.
+                if (left.length === 1 || right.length === 1) {
+                    // One of these is a single-bit check
+                    // (But we'll handle this centrally in runComputation for clarity)
+                }
+
                 const pL_A = parityA(left);
                 const pL_B = parityB(left);
-                // TRACKING: Every bit in the checked 'left' range is exposed
                 left.forEach(idx => bitExposure[idx]++);
 
                 steps.push({ lo, hi, mid, leftMismatch: (pL_A !== pL_B), snapshot: keyB.slice() });
@@ -266,7 +275,11 @@ class CascadeProtocolHandler {
                     // Exposed a hidden even-error pair — bisect recursively
                     events.push({ type: 'BACKTRACK_BISECT', pass: j + 1, blockNum, blockIndices, snapshot: keyB.slice() });
                     const { errorGlobalIdx, steps } = binary(blockIndices, j + 1);
-                    parityLeak += steps.length;
+                    
+                    // Direct Disclosure Rule: only count parities of size-1 blocks
+                    // This effectively means every found error results in exactly 1 bit purged.
+                    parityLeak += 1; 
+                    
                     events.push({ type: 'BISECT_STEPS', pass: j + 1, blockIndices, steps });
 
                     // Flip the bit
@@ -304,7 +317,11 @@ class CascadeProtocolHandler {
             }
 
             events.push({ type: 'PASS_START', pass: passNum, blockSize, blocks: blocks.map(b => ({ ...b })), snapshot: keyB.slice() });
-            parityLeak += blocks.length; // Pass scan reveals 1 parity per block
+            
+            // Direct Disclosure Rule: Only count parities if block size is 1
+            if (blockSize === 1) {
+                parityLeak += blocks.length;
+            }
 
             // TRACKING: Every bit in every block is exposed during initial scan
             perm.forEach(idx => bitExposure[idx]++);
@@ -318,7 +335,10 @@ class CascadeProtocolHandler {
                 events.push({ type: 'BISECT_START', pass: passNum, blockNum: bi + 1, blockIndices: blk.indices, snapshot: keyB.slice() });
 
                 const { errorGlobalIdx, steps } = binary(blk.indices, passNum);
-                parityLeak += steps.length; // Each bisection step is 1 parity check
+                
+                // Direct Disclosure Rule: 1 bit per error found
+                parityLeak += 1;
+                
                 events.push({ type: 'BISECT_STEPS', pass: passNum, blockIndices: blk.indices, steps });
 
                 // Flip
@@ -344,59 +364,29 @@ class CascadeProtocolHandler {
             }
         }
 
-        // --- SECURITY PURGE: Discard bits to account for the leaked information ---
-        // --- SECURITY PURGE: Discard bits to account for the leaked information ---
-        const originalLen = keyB.length;
+        const finalLen = Math.max(0, n - parityLeak);
+        
+        // Commit the final corrected keys to state
+        // WE DISCARD 'parityLeak' BITS FROM THE KEY to satisfy secrecy
+        const finalKeyA = keyA.slice(0, finalLen);
+        const finalKeyB = keyB.slice(0, finalLen);
 
-        // Demo concession: Cap the leak at 25% for small keys to preserve the UI
-        let effectiveLeak = parityLeak;
-        if (originalLen <= 64) {
-            effectiveLeak = Math.min(parityLeak, Math.floor(originalLen * 0.25));
-        }
+        // Snapshot MUST use the sliced key so playback doesn't revert the purge
+        events.push({ type: 'DONE', snapshot: [...finalKeyB], correctedSet: new Set(correctedSet), totalErrors: correctedSet.size, finalLen });
 
-        const safeLen = Math.max(1, originalLen - effectiveLeak);
-
-        // Target the bits with the highest exposure
-        const rankedIndices = Array.from({ length: originalLen }, (_, i) => i)
-            .sort((a, b) => bitExposure[b] - bitExposure[a]);
-
-        const purgedIndicesSet = new Set(rankedIndices.slice(0, effectiveLeak));
-
-        this.bitsRemovedInEC = effectiveLeak;
-        state.bitsRemovedInEC = effectiveLeak;
-        const ppCorrectionMetric = document.getElementById('pp-correction-removed');
-        if (ppCorrectionMetric) ppCorrectionMetric.textContent = effectiveLeak;
-
-        events.push({
-            type: 'SECURITY_PURGE',
-            leakage: effectiveLeak, // Ensure the event logs the capped leak
-            originalLen: originalLen,
-            safeLen: safeLen,
-            purgedIndices: Array.from(purgedIndicesSet),
-            snapshotBefore: keyB.slice()
-        });
-
-        // Construct the new keys by filtering out the purged indices (maintaining original order)
-        const purgedKeyB = [];
-        const purgedKeyA = [];
-        for (let i = 0; i < originalLen; i++) {
-            if (!purgedIndicesSet.has(i)) {
-                purgedKeyB.push(keyB[i]);
-                purgedKeyA.push(keyA[i]);
-            }
-        }
-
-        keyB.length = 0;
-        purgedKeyB.forEach(b => keyB.push(b));
-
-        events.push({ type: 'DONE', snapshot: keyB.slice(), correctedSet: new Set(correctedSet), totalErrors: correctedSet.size, finalLen: safeLen });
-
-        // Commit the final corrected keys to state (Both Alice and Bob must discard leaked bits)
-        state.workingKeyA = [...purgedKeyA];
-        state.workingKeyB = [...keyB];
-        state.reconciledKeyA = [...keyB]; // Update for dashboard
-        state.reconciledKeyB = [...keyB]; // Update for dashboard
+        state.workingKeyA = [...finalKeyA];
+        state.workingKeyB = [...finalKeyB];
+        state.reconciledKeyA = [...finalKeyA];
+        state.reconciledKeyB = [...finalKeyB];
         state.errorsCorrected = correctedSet.size;
+        state.bitsRemovedInEC = parityLeak;
+
+        const ppCorrectionMetric = document.getElementById('pp-correction-removed');
+        if (ppCorrectionMetric) ppCorrectionMetric.textContent = parityLeak;
+
+        // Visual consistency: Update Final Secret Key metric immediately to reflect purge
+        const ppFinalMetric = document.getElementById('pp-final-secret');
+        if (ppFinalMetric) ppFinalMetric.textContent = finalLen;
 
         return { events, correctedSet, finalKeyB: keyB };
     }
@@ -632,52 +622,19 @@ class CascadeProtocolHandler {
                 currentBlocksHtml = renderBlocksHtml(currentPassBlocks, ev.snapshot);
                 saveSnap(`BIT ${ev.globalIdx} FLIPPED`, ev.snapshot, `PASS ${ev.pass}: ERROR LOCATED`, 'rgba(192,57,43,0.1)', 'var(--danger-red)', true, 'none', '');
 
-            } else if (ev.type === 'BACKTRACK_OK') {
-                this.logHtml += `<span style="color:var(--text-muted);font-size:0.75rem;">&nbsp;&nbsp;↳ Block ${ev.blockNum} Pass ${ev.pass}: parity OK.</span><br>`;
-
-            } else if (ev.type === 'MAX_PASSES_REACHED') {
-                this.logHtml += `<span style="color:var(--danger-red);">> Max 8 passes reached. Residual errors likely too sparse to detect (even-count blocks).</span><br>`;
-                saveSnap('Max Passes Reached', ev.snapshot, 'MAX PASSES REACHED', 'rgba(192,57,43,0.1)', 'var(--danger-red)', true, 'none', '');
-
-            } else if (ev.type === 'SECURITY_PURGE') {
-                this.logHtml += `<br><span style="color:var(--danger-red); font-weight:800;">[SECURITY ALERT] Targeted Parity Information Leak Detected</span><br>`;
-                this.logHtml += `<span style="color:var(--text-muted); font-size:0.85rem;">Bits involved in numerous parity checks are now "tainted." To restore secrecy, we are rejecting the <b>${ev.leakage} most-exposed bits</b>.</span><br>`;
-
-                const purgedSet = new Set(ev.purgedIndices);
-                const purgeVis = ev.snapshotBefore.map((bit, idx) => {
-                    const isLeaked = purgedSet.has(idx);
-                    return `<span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; margin:2px; border:1px solid ${isLeaked ? 'var(--danger-red)' : '#ccc'}; border-radius:3px; background:${isLeaked ? 'rgba(192,57,43,0.1)' : '#fff'}; color:${isLeaked ? 'var(--danger-red)' : '#333'}; font-family:monospace; font-size:0.75rem; text-decoration: ${isLeaked ? 'line-through' : 'none'}; opacity: ${isLeaked ? '0.5' : '1'};">${bit}</span>`;
-                }).join('');
-
-                bisectHtml = `<div style="margin:25px 0; padding:15px; border:2px solid var(--danger-red); border-radius:6px; background: rgba(192,57,43,0.02); text-align:center;">
-                    <strong style="color:var(--danger-red); text-transform:uppercase; font-size:1rem; letter-spacing:1px; display:block; margin-bottom:5px;">! Targeted Security Purge</strong>
-                    <small style="color:var(--text-muted); font-size:0.7rem; display:block; margin-bottom:12px;">Discarding ${ev.leakage} bits that Alice and Bob publicly checked most often.</small>
-                    <div style="display:flex; flex-wrap:wrap; justify-content:center; max-width:600px; margin:0 auto;">
-                        ${purgeVis}
-                    </div>
-                </div>
-                
-                <div class="bit-audit-card" style="margin-top:20px; border-top-color: var(--danger-red);">
-                    <div class="audit-header" style="color:var(--danger-red);">STAGE 6: SECRECY ADJUSTMENT (CASCADE)</div>
-                    <div class="audit-row"><span>Corrected Bits Entering:</span> <span class="audit-val">${ev.originalLen}</span></div>
-                    <div class="audit-row"><span>Bits Removed (Tainted/Leaked):</span> <span class="audit-val removed">-${ev.leakage}</span></div>
-                    <div class="audit-row highlight"><span style="color:var(--danger-red)">Remaining Safe Bits:</span> <span class="audit-val" style="color:var(--danger-red)">${ev.safeLen}</span></div>
-                </div>`;
-                saveSnap('Security Purge', ev.snapshotBefore, 'SECURITY PURGE', 'rgba(192,57,43,0.1)', 'var(--danger-red)', true, 'none', '');
-
             } else if (ev.type === 'DONE') {
                 const finalKeyVis = ev.snapshot.map((bit, idx) => {
                     const isCorrected = ev.correctedSet.has(idx);
                     return `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin:2px;border:1px solid ${isCorrected ? '#2e7d32' : '#ccc'};border-radius:3px;background:${isCorrected ? 'rgba(46,125,50,0.15)' : '#fff'};color:${isCorrected ? '#2e7d32' : '#333'};font-family:monospace;font-size:0.75rem;font-weight:${isCorrected ? '800' : '400'};">${bit}</span>`;
                 }).join('');
 
-                const keyMatch = state.workingKeyA.join('') === ev.snapshot.join('');
+                const keyMatch = this.referenceKeyA.join('') === ev.snapshot.join('');
                 bisectHtml = `<div style="margin:25px 0;padding:15px;border:2px solid var(--safe-green);border-radius:6px;background:rgba(46,125,50,0.02);text-align:center;">
-                    <strong style="color:var(--safe-green);text-transform:uppercase;font-size:1rem;letter-spacing:1px;display:block;margin-bottom:5px;">✓ Final Corrected Key</strong>
-                    <small style="color:var(--text-muted);font-size:0.7rem;display:block;margin-bottom:12px;">Green = corrected by Cascade (${ev.totalErrors} bits) — ${keyMatch ? 'Keys fully match Alice ✓' : 'Note: high QBER may leave residual errors'}</small>
+                    <strong style="color:var(--safe-green);text-transform:uppercase;font-size:1rem;letter-spacing:1px;display:block;margin-bottom:5px;">✓ Final Reconciled Key</strong>
+                    <small style="color:var(--text-muted);font-size:0.7rem;display:block;margin-bottom:12px;">Green = corrected by Cascade (${ev.totalErrors} bits) — ${keyMatch ? 'Keys fully match Alice ✓' : 'Note: high noise may leave residual errors'}</small>
                     <div style="display:flex;flex-wrap:wrap;justify-content:center;max-width:600px;margin:0 auto;">${finalKeyVis}</div>
                 </div>`;
-                this.logHtml += `<br><span style="color:var(--safe-green);">> Cascade complete. ${ev.totalErrors} bits corrected. ${keyMatch ? 'Keys fully reconciled! ✓' : 'Best-effort reconciliation.'}</span><br>`;
+                this.logHtml += `<br><span style="color:var(--safe-green);">> Cascade complete. ${ev.totalErrors} bits corrected. ${keyMatch ? 'Keys fully reconciled! ✓' : 'Partial reconciliation.'}</span><br>`;
                 saveSnap('Reconciliation Complete', ev.snapshot, 'RECONCILIATION COMPLETE', 'rgba(46,125,50,0.2)', 'var(--safe-green)', true, 'none', '');
             }
         }
@@ -820,7 +777,7 @@ class CascadeProtocolHandler {
     }
 }
 
-function runCascadeBisectionAnimation(log, btnPa) {
+function runCascadeBisectionAnimation(log, btnPa, uiCascade, uiBlocks) {
     const handler = new CascadeProtocolHandler(log, btnPa);
     handler.start();
 }
@@ -1481,14 +1438,38 @@ class LDPCAnimator {
             }
         }
         state.errorsCorrected = corrected;
+
+        // LDPC Direct Disclosure Rule: 
+        // Only count check nodes connected to EXACTLY 1 bit (direct reveal)
+        const syndromeLeak = this.CN.filter(cn => {
+            const degree = this.edges.filter(e => e.c === cn.idx).length;
+            return degree === 1;
+        }).length;
+        state.bitsRemovedInEC = syndromeLeak;
+
+        const finalLen = Math.max(0, state.workingKeyB.length - syndromeLeak);
+        state.workingKeyA = state.workingKeyA.slice(0, finalLen);
+        state.workingKeyB = state.workingKeyB.slice(0, finalLen);
+        state.reconciledKeyA = [...state.workingKeyA];
+        state.reconciledKeyB = [...state.workingKeyB];
+
         if (this.syndromeVal) {
             this.syndromeVal.textContent = `[${this.CN.map(() => 0).join(', ')}]`;
             this.syndromeVal.style.color = 'var(--safe-green)';
         }
         if (this.log) {
-            this.log.innerHTML += `> LDPC Decoding Complete. ${corrected} bit(s) corrected. All syndromes satisfied.<br>`;
+            this.log.innerHTML += `> LDPC Decoding Complete. ${corrected} bit(s) corrected.<br>`;
+            this.log.innerHTML += `<span style="color:var(--danger-red);">> Secrecy Purge: Discarded ${syndromeLeak} bits (Syndrome Leakage).</span><br>`;
         }
         this.addHistory(`LDPC complete — ${corrected} bit(s) corrected.`, 'success');
+
+        const ppCorrectionMetric = document.getElementById('pp-correction-removed');
+        if (ppCorrectionMetric) ppCorrectionMetric.textContent = syndromeLeak;
+
+        // Visual consistency: Update Final Secret Key metric immediately to reflect purge
+        const ppFinalMetric = document.getElementById('pp-final-secret');
+        if (ppFinalMetric) ppFinalMetric.textContent = finalLen;
+
         if (this.btnPa) this.btnPa.disabled = false;
         this.isFinished = true;
     }
@@ -1617,11 +1598,19 @@ function startPrivacyAmplificationAnimation(onComplete) {
                 auditEl.style.borderTopColor = 'var(--accent-neon-cyan)';
                 logEc.appendChild(auditEl);
             }
+
+            const rawLeakage = Math.floor(n * hq);
+            const safetyMargin = Math.max(0, (n - m) - rawLeakage);
+
+            const preEcLen = n + (state.bitsRemovedInEC || 0);
+
             auditEl.innerHTML = `
                 <div class="audit-header" style="color:var(--accent-neon-cyan);">STAGE 6: ENTROPY RETENTION PIPELINE</div>
-                <div class="audit-row"><span>Safe Bits (Post-Error Correction):</span> <span class="audit-val">${n}</span></div>
-                <div class="audit-row"><span>Estimated Information Leakage (IQ):</span> <span class="audit-val removed">${state.leakage}%</span></div>
-                <div class="audit-row"><span>Privacy Purge (Hashing Loss):</span> <span class="audit-val removed">-${n - m} Bits</span></div>
+                <div class="audit-row"><span>Post-Sampling Working Length:</span> <span class="audit-val">${preEcLen}</span></div>
+                <div class="audit-row"><span>Correction Purge (Direct Disclosure):</span> <span class="audit-val removed">-${state.bitsRemovedInEC || 0} Bits</span></div>
+                <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.1); margin: 8px 0;">
+                <div class="audit-row"><span>PA Leakage Purge (n * H(Q)):</span> <span class="audit-val removed">-${rawLeakage} Bits</span></div>
+                <div class="audit-row"><span>PA Safety Margin (Finite-Key Hash):</span> <span class="audit-val removed">-${safetyMargin} Bits</span></div>
                 <div class="audit-row highlight" style="border-color: var(--accent-neon-cyan); color: var(--accent-neon-cyan);">
                     <span>Final Information-Theoretic Secret Key:</span> <span class="audit-val">${m} BITS</span>
                 </div>
@@ -1654,7 +1643,7 @@ function startPrivacyAmplificationAnimation(onComplete) {
         }, 300);
     };
 
-    logEc.innerHTML += `>   rsal Hash Space (Toeplitz) to eliminate partial overlaps...<br>`;
+    logEc.innerHTML += `> Initializing Universal Hash Space (Toeplitz) to eliminate partial overlaps...<br>`;
     setTimeout(processRow, 800);
 }
 

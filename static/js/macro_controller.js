@@ -14,12 +14,12 @@ export function initMacroController() {
     // --- MACRO 1: INFRASTRUCTURE ---
     btn1.addEventListener('click', async (e) => {
         if (state.automationStep >= 1 || btn1.classList.contains('active')) return;
-        
+
         console.log("[MACRO] Initiating Step 1: Infrastructure");
         btn1.classList.add('active');
         const sub1 = btn1.querySelector('.m-sub');
         if (sub1) sub1.textContent = 'Transmitting Photons...';
-        
+
         // 1. Shift to Stage 3
         window.navigateToStage('stage-3');
 
@@ -59,7 +59,7 @@ export function initMacroController() {
                 // 2. Jump to Stage 5 for QBER
                 setTimeout(() => {
                     window.navigateToStage('stage-5');
-                    
+
                     setTimeout(() => {
                         const sampleBtn = document.getElementById('btn-sample-qber');
                         if (sampleBtn) sampleBtn.click();
@@ -91,7 +91,7 @@ export function initMacroController() {
                 if (paBtn && !paBtn.disabled) {
                     clearInterval(checkPA);
                     paBtn.click();
-                    
+
                     // 2. Jump to final results
                     setTimeout(() => {
                         window.navigateToStage('stage-7');
