@@ -4,6 +4,8 @@
 
 **🌐 Presentation:** [Presentation](https://bb84qkd.netlify.app/bb84_qkd_presentation.html)
 
+**🌐 Audit report after running app:** [Audit Report](https://bb84qkd.netlify.app/BB84%20QKD%20Protocol%20%E2%80%94%20Audit%20Report%20_%20QKD-8824-A.pdf)
+
 An interactive, research-grade educational web application designed to simulate and visualise the BB84 QKD protocol from end to end.
 
 ## Overview
