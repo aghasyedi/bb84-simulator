@@ -20,7 +20,7 @@ Modern internet security is built on computational hardness—assumptions that a
 
 This project provides a comprehensive, **pure client-side** simulator for the **BB84 QKD protocol**. Unlike classical encryption schemes (like RSA), BB84's security does not depend on mathematics; it is guaranteed by the fundamental laws of quantum physics (the No-Cloning Theorem and Heisenberg's Uncertainty Principle). 
 
-This application takes users through the entire cryptographic pipeline, from preparing photon polarizations to finalizing an unconditionally secure symmetric key ready for the ChaCha20-Poly1305 cipher suite.
+This application takes users through the entire cryptographic pipeline, from preparing photon polarisations to finalising an unconditionally secure symmetric key ready for the ChaCha20-Poly1305 cipher suite.
 
 ---
 
@@ -32,22 +32,22 @@ The simulator is structured into seven interactive stages, designed to bridge th
 A comprehensive introduction to the history, mechanics, and real-world deployments (Banking, Defense, Quantum Networks) of the BB84 protocol.
 
 ### 2. Quantum Primitives
-Interactive visualizations of the physics that make QKD secure.
+Interactive visualisations of the physics that make QKD secure.
 * **Bloch Sphere Representation:** Understand 2D Hilbert space.
-* **Wavefunction Collapse:** Visualize how measurement disturbs superposition states.
+* **Wavefunction Collapse:** Visualise how measurement disturbs superposition states.
 * **Mutually Unbiased Bases:** Explore Rectilinear ($+$) and Diagonal ($\times$) encoding.
 
 ### 3. Protocol Core Engine (Transmission)
 Simulate the real-time quantum channel between Alice and Bob.
 * **Adjustable Parameters:** Control protocol scale (up to 10,240 photons), channel noise, pulse dynamics, and propagation speed.
-* **Threat Modeling:** Toggle Eve's active interception to visualize intercept-resend attacks.
-* **Synchronized State Matrix:** Real-time data logging of Alice's bits/bases and Bob's measurements.
+* **Threat Modeling:** Toggle Eve's active interception to visualise intercept-resend attacks.
+* **Synchronised State Matrix:** Real-time data logging of Alice's bits/bases and Bob's measurements.
 
 ### 4. Basis Sifting (Classical Reconciliation)
 Execute the public-channel comparison where Alice and Bob discard bits measured in incompatible bases, retaining ~50% efficiency to form the **Sifted Key**.
 
 ### 5. QBER Analysis (Security Auditing)
-Analyze the **Quantum Bit Error Rate (QBER)**. Sample a random subset of the sifted key to detect eavesdropper interference based on the Hoeffding Inequality. Automatically aborts if the critical 12.9% threshold is breached.
+Analyse the **Quantum Bit Error Rate (QBER)**. Sample a random subset of the sifted key to detect eavesdropper interference based on the Hoeffding Inequality. Automatically aborts if the critical 12.9% threshold is breached.
 
 ### 6. Post-Processing (Algorithmic Correction)
 Transform the raw sifted key into a polished secret.
@@ -66,7 +66,7 @@ This simulator is engineered for maximum performance and portability, running co
 | Layer | Technologies Used | Details |
 | :--- | :--- | :--- |
 | **Frontend** | Vanilla JavaScript, HTML5, CSS3 | Zero-dependency core logic. |
-| **Visualizations** | Canvas API | High-performance rendering for photon pulses, Bloch spheres, and Tanner graphs. |
+| **Visualisations** | Canvas API | High-performance rendering for photon pulses, Bloch spheres, and Tanner graphs. |
 | **Mathematics** | KaTeX | Real-time LaTeX formula rendering for physical proofs. |
 | **UI/UX** | Custom CSS | Premium glassmorphism design, custom animations, and seamless Day/Night theme toggling. |
 | **Deployment** | Static SPA | Hostable anywhere (GitHub Pages, Netlify, Vercel, or local filesystem). |
@@ -94,7 +94,7 @@ Because the application is a fully client-side Single Page Application (SPA), no
 
 ## 🎓 Academic Context
 
-This simulator was developed as an academic project within the **Master of Technology (M.Tech) in Quantum Computing** program, specializing in Quantum Communication & Sensing.
+This simulator was developed as an academic project within the **Master of Technology (M.Tech) in Quantum Computing** program, specialising in Quantum Communication & Sensing.
 
   * **Developer:** Agha Tasheer Syedi
   * **Institution:** School of Quantum Technology (SQT), DIAT-DRDO, Pune, MH, India.
