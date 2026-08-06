@@ -133,3 +133,7 @@ Built upon the shoulders of giants.
 <div align="center">
 <small>Designed and Engineered for the Post-Quantum Era.</small>
 </div>
+
+---
+
+**Note:** This represents version `v1.0.0`. In the next version (which may take some time), I plan to add a Qiskit/Python program for the BB84 protocol.
