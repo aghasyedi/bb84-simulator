@@ -121,10 +121,20 @@ export function initStage5() {
         if (qberDisplay) qberDisplay.textContent = qberPercentVal.toFixed(1) + '%';
 
         if (state.qber > state.MAX_QBER) {
+            // Above the BB84 security bound no secret key can be distilled, so the
+            // run is aborted and the working keys are discarded. Stages 6 and 7
+            // check state.protocolAborted and refuse to continue.
+            // (Finite-key note: with small samples the estimate can fluctuate above
+            // the bound even on a clean channel — that is the honest behaviour of a
+            // fixed threshold rather than a Hoeffding-corrected one.)
+            state.protocolAborted = true;
+            state.workingKeyA = [];
+            state.workingKeyB = [];
             if (qberBarFill) qberBarFill.style.background = 'var(--danger-red)';
             if (qberDisplay) qberDisplay.style.color = 'var(--danger-red)';
-            if (qberStatus) qberStatus.innerHTML = '<span style="color:var(--danger-red)">CRITICAL: EVE DETECTED</span>';
+            if (qberStatus) qberStatus.innerHTML = '<span style="color:var(--danger-red)">CRITICAL: EVE DETECTED — KEY DISCARDED, PROTOCOL ABORTED</span>';
         } else {
+            state.protocolAborted = false;
             const isNoisy = state.qber > 0;
             if (qberBarFill) qberBarFill.style.background = isNoisy ? '#f59e0b' : 'var(--safe-green)';
             if (qberDisplay) qberDisplay.style.color = isNoisy ? '#f59e0b' : 'var(--safe-green)';
@@ -137,7 +147,12 @@ export function initStage5() {
             setTimeout(() => { qberBarFill.style.width = Math.min(qberPercentVal, 100) + '%'; }, 50);
         }
         
-        emit('qberCalculated', { qber: state.qber, finalLength: state.workingKeyA.length });
+        emit('qberCalculated', {
+            qber: state.qber,
+            finalLength: state.workingKeyA.length,
+            aborted: state.protocolAborted
+        });
+        if (state.protocolAborted) emit('protocolAborted', { qber: state.qber });
     };
 
     const updateCounter = () => {

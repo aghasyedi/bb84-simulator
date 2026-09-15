@@ -2,10 +2,19 @@
  * stage7_results.js - Final security audit dashboard
  */
 import { state, subscribe } from '../state.js';
-import { generateAuditReport } from '../report_generator.js';
+import { generateAuditReport, getSessionId } from '../report_generator.js';
 
 export function initStage7() {
     console.debug("[STAGE-7] Initializing Results Dashboard...");
+
+    // go.html ships a hard-coded placeholder ID, so mint a fresh one per run
+    // instead of stamping every audit report with the same session.
+    const refreshSessionId = () => {
+        const el = document.getElementById('res-session-id');
+        if (el) el.textContent = getSessionId();
+    };
+    refreshSessionId();
+    subscribe('protocolReset', refreshSessionId);
 
     const refreshDashboard = () => {
         console.debug("[STAGE-7] Refreshing dashboard data...", state);
@@ -33,8 +42,13 @@ export function initStage7() {
             finalDisplay.textContent = state.finalSecretKey.join('');
             finalDisplay.style.color = "#00ff88"; // Neon green for success
             if(resFinLenTag) resFinLenTag.textContent = `${state.finalSecretKey.length} BITS`;
+        } else if (state.protocolAborted) {
+            finalDisplay.textContent = 'PROTOCOL ABORTED — QBER exceeded '
+                + (state.MAX_QBER * 100).toFixed(1) + '%. Key discarded.';
+            finalDisplay.style.color = "var(--danger-red)";
+            if(resFinLenTag) resFinLenTag.textContent = '0 BITS';
         } else {
-            finalDisplay.textContent = state.siftedKeyA.length > 0 ? 
+            finalDisplay.textContent = state.siftedKeyA.length > 0 ?
                 'Awaiting Privacy Amplification...' : 'Protocol has not been initiated.';
             finalDisplay.style.color = "var(--text-muted)";
             if(resFinLenTag) resFinLenTag.textContent = '0 BITS';
@@ -94,6 +108,15 @@ export function initStage7() {
                 if(btnExport) btnExport.style.display = "none";
                 finalDisplay.style.color = "var(--danger-red)";
             }
+        } else if (state.protocolAborted) {
+            if(secIndicator) {
+                secIndicator.textContent = "ABORTED";
+                secIndicator.style.background = "rgba(192, 57, 43, 0.2)";
+                secIndicator.style.color = "var(--danger-red)";
+            }
+            if(sealIcon) sealIcon.textContent = "⚠️";
+            if(sealText) sealText.textContent = "ABORTED";
+            if(btnExport) btnExport.style.display = "none";
         }
 
         updateEntropyPipeline(initial, sifted, reconciled, finalKeyLen);
@@ -105,38 +128,36 @@ export function initStage7() {
         const pipeEc = document.getElementById('pipe-fill-ec');
         const pipePa = document.getElementById('pipe-fill-pa');
 
-        if (!pipeRaw) return;
+        if (!pipeRaw || !pipeSifted || !pipeEc || !pipePa) return;
 
-        // Values
-        document.getElementById('pipe-val-raw').textContent = `${raw} BITS`;
-        document.getElementById('pipe-val-sifted').textContent = `${sifted} BITS`;
-        document.getElementById('pipe-val-ec').textContent = `${ec} BITS`;
-        document.getElementById('pipe-val-pa').textContent = `${final} BITS`;
+        // Bit counts are rendered above by res-initial / res-sifted /
+        // res-reconciled / res-final-len; this only drives the bars.
+        const pct = (num, den) => (den > 0 ? Math.max(0, Math.min(100, (num / den) * 100)) : 0);
 
-        // Percentages (relative to Raw 100%)
-        const pRaw = 100;
-        const pSifted = raw > 0 ? (sifted / raw) * 100 : 0;
-        const pEc = raw > 0 ? (ec / raw) * 100 : 0;
-        const pPa = raw > 0 ? (final / raw) * 100 : 0;
+        pipeRaw.style.width = raw > 0 ? '100%' : '0%';
+        pipeSifted.style.width = `${pct(sifted, raw)}%`;
+        pipeEc.style.width = `${pct(ec, raw)}%`;
+        pipePa.style.width = `${pct(final, raw)}%`;
 
-        pipeRaw.style.height = `${pRaw}%`;
-        pipeSifted.style.height = `${pSifted}%`;
-        pipeEc.style.height = `${pEc}%`;
-        pipePa.style.height = `${pPa}%`;
+        // Loss at each step, relative to the previous stage's output
+        const setLoss = (id, text) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        };
 
-        // Loss Calculations
-        const siftLoss = raw > 0 ? ((raw - sifted) / raw * 100).toFixed(0) : 0;
-        const ecLoss = sifted > 0 ? ((sifted - ec) / sifted * 100).toFixed(0) : 0;
-        const paLoss = ec > 0 ? ((ec - final) / ec * 100).toFixed(0) : 0;
+        setLoss('pipe-loss-raw', raw > 0 ? '100% RETAINED' : '—');
+        setLoss('pipe-loss-sifting', raw > 0 ? `-${((raw - sifted) / raw * 100).toFixed(0)}%` : '—');
+        setLoss('pipe-loss-ec', sifted > 0 ? `-${((sifted - ec) / sifted * 100).toFixed(0)}%` : '—');
+        setLoss('pipe-loss-pa', ec > 0 ? `-${((ec - final) / ec * 100).toFixed(0)}%` : '—');
 
-        document.getElementById('pipe-loss-sifting').textContent = `-${siftLoss}%`;
-        document.getElementById('pipe-loss-ec').textContent = `-${ecLoss}%`;
-        document.getElementById('pipe-loss-pa').textContent = `-${paLoss}%`;
-
-        // Visibility
-        pipeSifted.parentElement.parentElement.classList.toggle('active', sifted > 0);
-        pipeEc.parentElement.parentElement.classList.toggle('active', ec > 0 && ec !== sifted);
-        pipePa.parentElement.parentElement.classList.toggle('active', final > 0);
+        // Dim the stages that have not been reached yet
+        const dim = (fillEl, active) => {
+            const module = fillEl && fillEl.closest ? fillEl.closest('.pipeline-module') : null;
+            if (module) module.style.opacity = active ? '1' : '0.45';
+        };
+        dim(pipeSifted, sifted > 0);
+        dim(pipeEc, ec > 0 && ec !== sifted);
+        dim(pipePa, final > 0);
     };
 
 

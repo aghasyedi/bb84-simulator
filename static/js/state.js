@@ -5,7 +5,6 @@
 export const state = {
     // Stage navigation
     currentStage: 'stage-1',
-    advancedMode: false,
 
     // Simulator config
     numBits: 128,
@@ -61,7 +60,11 @@ export const state = {
     customNoise: null,
 
     qber: 0.0,
-    MAX_QBER: 0.129
+    MAX_QBER: 0.129,
+
+    // Set when the sampled QBER breaches MAX_QBER: the key is treated as
+    // compromised, the working keys are dropped and stages 6/7 refuse to run.
+    protocolAborted: false
 };
 
 // ... existing state functions ...
@@ -70,29 +73,46 @@ export const state = {
  * Expert Toolbox Data Injector
  */
 export function injectToolboxData(options = {}) {
-    const { qber, noise, bits } = options;
+    const { noise, bits } = options;
 
-    if (qber !== undefined) state.customQBER = qber / 100;
-    if (noise !== undefined) state.customNoise = noise;
+    // Channel noise is a physical channel property, so it maps straight onto the
+    // noise level the transmission stage already uses. (QBER is *measured* from
+    // the run, never injected, so there is deliberately no qber option here.)
+    if (noise !== undefined) {
+        const pct = Number(noise);
+        if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+            return { ok: false, reason: 'Noise must be a percentage between 0 and 100.' };
+        }
+        state.customNoise = pct;
+        state.noiseLevel = pct / 100;
+    }
 
     if (bits && bits.length > 0) {
-        const binBits = bits.split('').map(b => parseInt(b));
+        const clean = String(bits).replace(/[^01]/g, '');
+        if (clean.length === 0) {
+            return { ok: false, reason: 'Bit string must contain only 0s and 1s.' };
+        }
+
+        const binBits = clean.split('').map(Number);
         const len = binBits.length;
+
         state.alice.bits = binBits;
-        state.alice.bases = Array.from({ length: len }, () => Math.round(Math.random()));
+        state.alice.bases = Array.from({ length: len }, () => (Math.random() < 0.5 ? 0 : 1));
         state.numBits = len;
 
-        // Reset subsequent stages
-        state.bob.bases = [];
-        state.bob.measurements = [];
-        state.eve.bases = [];
-        state.eve.measurements = [];
-        state.siftedKeyA = [];
-        state.siftedKeyB = [];
+        // Keep the rendered polarisation angles in sync with the injected stream.
+        // Basis 0 = rectilinear (0 -> 0deg, 1 -> 90deg), 1 = diagonal (45/135).
+        state.alice.photons = binBits.map((bit, i) =>
+            state.alice.bases[i] === 0 ? (bit === 0 ? 0 : 90) : (bit === 0 ? 45 : 135));
 
+        // Everything downstream of Alice is now stale
+        resetProtocolState();
         emit('alicePrepared', state.alice);
-        console.log(`[TOOLBOX] Injected ${len} custom bits.`);
+
+        return { ok: true, length: len, ignored: String(bits).length - clean.length };
     }
+
+    return { ok: true };
 }
 
 
@@ -160,6 +180,17 @@ export function resetProtocolState() {
     state.errorsCorrected = 0;
     state.finalSecretKey = [];
     state.automationStep = 0;
+    state.protocolAborted = false;
+
+    // Bit-retention bookkeeping (otherwise these leak into the next run)
+    state.bitsRemovedInSifting = 0;
+    state.bitsRemovedInQBER = 0;
+    state.bitsRemovedInEC = 0;
+    state.bitsRemovedInPA = 0;
+    state.leakage = 0;
+    state.retentionRatio = 0;
+    state.reconciledKeyA = [];
+    state.reconciledKeyB = [];
 
     emit('protocolReset');
 }

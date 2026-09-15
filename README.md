@@ -24,9 +24,9 @@ Experience the entire cryptographic pipeline. Prepare photon polarisations. Witn
 
 ---
 
-## The 7-Stage Simulation Pipeline in Detail
+## The 8-Stage Simulation Pipeline in Detail
 
-This simulator bridges the formidable gap between abstract quantum mechanics and practical cryptographic engineering. The journey is meticulously divided into seven critical stages, each highly interactive and visually represented via high-performance Canvas animations.
+This simulator bridges the formidable gap between abstract quantum mechanics and practical cryptographic engineering. The journey is meticulously divided into eight critical stages, each highly interactive and visually represented via high-performance Canvas and SVG animations.
 
 ### 1. Educational Foundation
 A rigorous introduction to the history, underlying mechanics, and critical real-world deployments of the BB84 protocol across banking, defence, and nascent quantum networks. It establishes the mathematical and physical prerequisites required to understand QKD.
@@ -63,6 +63,17 @@ Forge the raw sifted key into an unbreakable secret.
 Audit the final unconditionally secure cryptographic key. The system provides a comprehensive breakdown of bits retained versus discarded throughout the pipeline.
 * **Cryptographic Report Generation:** Generate professional, highly detailed PDF audit reports documenting the entire quantum session, including transmission metrics, error rates, and final key outputs.
 
+### 8. Optical Bench & Physics Laboratories
+Leave the abstraction behind and work with the actual hardware.
+
+* **Physical Optical Bench:** A component-level drawing of a real BB84 setup — lasers, polarisers, half-wave plates, beam combiners, variable attenuators, the quantum channel, and Bob's beam splitters and detectors. Six **transmitter modules** (4-laser array, Pockels cell, decoy-state WCP, entangled SPDC, silicon photonics PIC, free-space/satellite) and six **receiver modules** (passive basis choice, active Pockels, time-bin, phase encoding, cryogenic SNSPD, free-space ground station) can be combined into 36 different benches, plus six ready-made link presets.
+* **Polarisation Laboratory:** Field visualiser with a rotatable analyser, Malus' law curve, and single-photon shot noise.
+* **Photon Source Laboratory:** Ideal, weak-coherent, decoy and thermal photon-number statistics — and why practical BB84 attenuates below one photon per pulse.
+* **Detector Laboratory:** Monte-Carlo receiver with detection efficiency, dark counts, dead time and the QBER-vs-loss dark-count floor.
+* **Decoy-State BB84:** Standard (GLLP/tagged) versus two-decoy-plus-vacuum BB84, with yields, single-photon bounds, PNS exposure and secure key rate versus fibre length.
+* **Finite-Key Analysis:** Block lengths from 10³ to 10⁷ pulses, Hoeffding statistical margins, ε-composition overhead, and the minimum block length needed for a positive key.
+* **End-to-End BB84 Mission:** A nine-step playable experiment — configure Alice, the bench, the channel and Eve, then run photons, sift, measure the QBER, reconcile, apply privacy amplification and distil a final key.
+
 ---
 
 ## Technical Architecture
@@ -72,8 +83,8 @@ Engineered for uncompromising performance and universal portability. Complex mat
 | Layer | Technologies Used | Details |
 | :--- | :--- | :--- |
 | **Frontend Core** | Vanilla JavaScript, HTML5, CSS3 | A zero-dependency, high-performance logic engine utilising ES6 modules for modularity. |
-| **State Management** | Custom Event Emitter | Decoupled state synchronisation across 7 independent stage modules. |
-| **Visualisations** | HTML5 Canvas API | Precision rendering for photon pulses, 3D-like Bloch spheres, and complex LDPC Tanner graphs. |
+| **State Management** | Custom Event Emitter | Decoupled state synchronisation across 8 independent stage modules. |
+| **Visualisations** | HTML5 Canvas API + inline SVG | Precision rendering for photon pulses, 3D-like Bloch spheres, complex LDPC Tanner graphs, and data-driven optical bench / chart generation. |
 | **Mathematics** | KaTeX | Real-time, elegant LaTeX formula rendering for rigorous physical proofs and algorithms. |
 | **UI/UX** | Custom CSS Variables | A premium glassmorphism aesthetic, fluid custom CSS animations, and seamless environmental adaptation (Day/Night themes). |
 | **Export Engine** | Client-Side PDF Generation | Compiles real-time simulation metrics into structured audit reports. |

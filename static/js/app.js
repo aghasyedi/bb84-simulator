@@ -4,10 +4,12 @@ import { initStage4 } from './stages/stage4_sifting.js';
 import { initStage5 } from './stages/stage5_qber.js';
 import { initStage6 } from './stages/stage6_postprocessing.js';
 import { initStage7 } from './stages/stage7_results.js';
+import { initStage8 } from './stages/stage8_optics.js';
+import { initStage8Labs } from './stages/stage8_labs.js';
 import { initMacroController } from './macro_controller.js';
 import { initMacroWindowManager } from './macro_window.js';
 
-import { injectSandboxData } from './state.js';
+import { injectSandboxData, injectToolboxData } from './state.js';
 import { BlochSphere } from './bloch_sphere.js';
 import { PolarizationAnimator } from './polarization_animator.js';
 import { WelcomeAnimator } from './welcome_animator.js';
@@ -36,10 +38,14 @@ document.addEventListener('DOMContentLoaded', () => {
     initStage5();
     initStage6();
     initStage7();
+    initStage8();
+    initStage8Labs();
+    // Macro window manager first: Advanced mode drives the floating panel.
+    initMacroWindowManager();
     initSettings();
+    initExpertToolbox();
     initTheme();
     initMacroController();
-    initMacroWindowManager();
 
 
     // Listen for global protocol reset
@@ -145,32 +151,83 @@ function renderMathForElement(element) {
 
 function initSettings() {
     const advancedSlot = document.getElementById('btn-toggle-turbo');
-    const advancedToggle = document.getElementById('advanced-mode-toggle');
     const expertToolbox = document.getElementById('expert-toolbox');
 
-    if (advancedSlot && advancedToggle) {
-        advancedSlot.addEventListener('click', () => {
-            advancedToggle.checked = !advancedToggle.checked;
-            updateAdvancedMode(advancedToggle.checked);
-        });
-        
-        // Init state
-        updateAdvancedMode(advancedToggle.checked);
-    }
+    if (!advancedSlot) return;
 
+    // Single source of truth for Advanced mode: the button itself.
     function updateAdvancedMode(isActive) {
         state.advancedMode = isActive;
+
+        advancedSlot.setAttribute('aria-checked', isActive ? 'true' : 'false');
+        advancedSlot.setAttribute('aria-expanded', isActive ? 'true' : 'false');
+        advancedSlot.classList.toggle('active', isActive);
+        advancedSlot.title = isActive
+            ? 'Advanced mode is ON — hide the Expert Toolbox'
+            : 'Advanced mode — reveals the Expert Toolbox';
+
+        const stateLabel = advancedSlot.querySelector('.utility-state');
+        if (stateLabel) stateLabel.textContent = isActive ? 'On' : 'Off';
+
+        document.body.classList.toggle('mode-advanced', isActive);
+        if (expertToolbox) expertToolbox.style.display = isActive ? 'block' : 'none';
+
         emit('advancedModeChanged', state.advancedMode);
-        
-        if (isActive) {
-            document.body.classList.add('mode-advanced');
-            advancedSlot.classList.add('active');
-            if (expertToolbox) expertToolbox.style.display = 'block';
-        } else {
-            document.body.classList.remove('mode-advanced');
-            advancedSlot.classList.remove('active');
-            if (expertToolbox) expertToolbox.style.display = 'none';
+
+        // Keep the floating accelerator panel locked to Advanced mode so the
+        // two can never desync when it is dismissed with its own close button.
+        if (typeof window.toggleTurboWindow === 'function') {
+            window.toggleTurboWindow(isActive);
         }
+    }
+
+    advancedSlot.addEventListener('click', () => updateAdvancedMode(!state.advancedMode));
+
+    // Init state
+    updateAdvancedMode(false);
+}
+
+/**
+ * Expert Toolbox (Advanced mode).
+ * Lets you drive the run directly: inject a known Alice bit string, or set the
+ * physical channel noise. QBER is deliberately absent — it is an outcome you
+ * measure from the run, not a knob you can set.
+ */
+function initExpertToolbox() {
+    const bitsInput = document.getElementById('toolbox-bits');
+    const noiseInput = document.getElementById('toolbox-noise');
+    const statusEl = document.getElementById('toolbox-status');
+    const btnBits = document.getElementById('btn-toolbox-inject-bits');
+    const btnNoise = document.getElementById('btn-toolbox-apply-noise');
+
+    const report = (msg, ok = true) => {
+        if (!statusEl) return;
+        statusEl.textContent = msg;
+        statusEl.style.color = ok ? 'var(--safe-green)' : 'var(--danger-red)';
+    };
+
+    if (btnBits && bitsInput) {
+        btnBits.addEventListener('click', () => {
+            const res = injectToolboxData({ bits: bitsInput.value });
+            if (!res.ok) { report(res.reason, false); return; }
+            const stripped = res.ignored > 0 ? ` (${res.ignored} non-binary char(s) stripped)` : '';
+            report(`Injected ${res.length} photons, bases randomised.${stripped}`);
+        });
+    }
+
+    if (btnNoise && noiseInput) {
+        btnNoise.addEventListener('click', () => {
+            const res = injectToolboxData({ noise: noiseInput.value });
+            if (!res.ok) { report(res.reason, false); return; }
+
+            // Keep the Stage 3 slider in sync so the two controls never disagree
+            const slider = document.getElementById('noise-slider');
+            if (slider) {
+                slider.value = String(state.noiseLevel * 100);
+                slider.dispatchEvent(new Event('input'));
+            }
+            report(`Channel noise set to ${(state.noiseLevel * 100).toFixed(0)}%.`);
+        });
     }
 }
 

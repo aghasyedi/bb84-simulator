@@ -9,6 +9,12 @@ let currentBitIndex = 0;
 let isSiftingPaused = false;
 let simulationSpeed = 1.0;
 
+// A card per bit is unaffordable at 10,240 photons, so only a window is
+// rendered. The counters below stay exact regardless of what is drawn.
+const MAX_AUDIT_CARDS = 300;
+let matchedCount = 0;
+let renderedCards = 0;
+
 export function initStage4() {
     const btnSift = document.getElementById('btn-sift');
     const btnReset = document.getElementById('btn-sift-reset');
@@ -107,6 +113,8 @@ function resetSifting() {
     clearTimeout(siftingInterval);
     currentBitIndex = 0;
     isSiftingPaused = false;
+    matchedCount = 0;
+    renderedCards = 0;
 
     // UI Reset
     const btnSift = document.getElementById('btn-sift');
@@ -156,6 +164,8 @@ function resetSifting() {
 
 function startSiftingSimulation(ctx) {
     currentBitIndex = 0;
+    matchedCount = 0;
+    renderedCards = 0;
     const timeline = document.getElementById('sifting-timeline');
     if (timeline) timeline.innerHTML = ''; // Clear initial message
     runSiftingStep(ctx);
@@ -224,15 +234,20 @@ function processBitStep(ctx, index, skipAnim = false) {
         animateComparison(ctx, aliceBasis, bobBasis, isMatch);
     }
 
-    // Add Auditor Card
-    addAuditorCard(index, aBasisStr, bBasisStr, isMatch);
+    if (isMatch) matchedCount++;
+
+    // Add Auditor Card (capped — see MAX_AUDIT_CARDS)
+    if (renderedCards < MAX_AUDIT_CARDS) {
+        addAuditorCard(index, aBasisStr, bBasisStr, isMatch);
+        renderedCards++;
+    }
 
     // Update Metrics
     updateSiftingMetrics(index + 1);
 }
 
 function updateSiftingMetrics(totalProcessed) {
-    const kept = document.querySelectorAll('.sift-auditor-card.matched').length;
+    const kept = matchedCount;
     const countEl = document.getElementById('sift-total-count');
     const siftedEl = document.getElementById('sift-summary-sifted');
     const removedEl = document.getElementById('sift-summary-removed');

@@ -13,7 +13,9 @@
 import { state } from './state.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const LOGO_PATH = './static/assets/bb84_nr.png';
+// The report is written into a window opened with window.open(''), whose base is
+// about:blank, so a relative path would never resolve. Resolve against the app.
+const LOGO_PATH = new URL('./static/assets/bb84_nr.png', document.baseURI).href;
 const MAX_QBER_THRESHOLD = 12.9; // % — standard BB84 security threshold
 
 // ─── Utility Helpers ──────────────────────────────────────────────────────────
@@ -35,7 +37,7 @@ function getReportTimestamp() {
 /**
  * Generates a random hex session ID for the report.
  */
-function getSessionId() {
+export function getSessionId() {
     const hex = () => Math.floor(Math.random() * 0xffff).toString(16).toUpperCase().padStart(4, '0');
     return `QKD-${hex()}-${hex()}`;
 }
@@ -1476,7 +1478,6 @@ function buildReportHTML(d) {
  */
 export function generateAuditReport() {
     const data = collectReportData();
-    console.log(data)
     const html = buildReportHTML(data);
 
     // Open in new tab

@@ -82,6 +82,10 @@ export function initStage3() {
         }
     };
 
+    // Rendering tens of thousands of cells would stall the page at 10,240 bits,
+    // so the monitor shows a capped window of the stream.
+    const MONITOR_CELL_LIMIT = 256;
+
     const renderMonitorRow = (container, data, type = 'bit') => {
         if (!container) return;
         // Keep the label, clear the rest
@@ -89,12 +93,21 @@ export function initStage3() {
         container.innerHTML = '';
         if (label) container.appendChild(label);
 
-        data.forEach(val => {
+        const shown = data.slice(0, MONITOR_CELL_LIMIT);
+        shown.forEach(val => {
             const span = document.createElement('span');
             span.className = `bit-cell type-${type === 'basis' ? 'basis' : 'bit'}`;
             span.textContent = type === 'basis' ? (val === BASIS_RECT ? '+' : 'x') : val;
             container.appendChild(span);
         });
+
+        if (data.length > MONITOR_CELL_LIMIT) {
+            const more = document.createElement('span');
+            more.className = 'bit-cell';
+            more.style.opacity = '0.55';
+            more.textContent = `+${data.length - MONITOR_CELL_LIMIT}`;
+            container.appendChild(more);
+        }
     };
 
     // Subscribe to State Changes
@@ -166,7 +179,8 @@ export function initStage3() {
             resetProtocolState();
             if (inputNumBits) {
                 let val = parseInt(inputNumBits.value);
-                state.numBits = Math.max(10, Math.min(1000, val));
+                // Upper bound must match the max advertised by #input-num-bits
+                state.numBits = Math.max(10, Math.min(10240, val));
                 inputNumBits.value = state.numBits;
             }
             alicePrepare();

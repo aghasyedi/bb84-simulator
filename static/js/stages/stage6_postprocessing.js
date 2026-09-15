@@ -37,6 +37,13 @@ export function initStage6() {
 
     if (btnEc) {
         btnEc.addEventListener('click', () => {
+            if (state.protocolAborted) {
+                logEc.innerHTML = '<span style="color:var(--danger-red)">> ABORT: QBER exceeded the ' +
+                    (state.MAX_QBER * 100).toFixed(1) +
+                    '% security bound. The key has been discarded — reset the protocol to run again.</span>';
+                return;
+            }
+
             if (state.workingKeyA.length === 0) {
                 logEc.innerHTML = '<span style="color:var(--danger-red)">> Error: No working key available. Please complete Stage 5 first.</span>';
                 return;
@@ -46,6 +53,11 @@ export function initStage6() {
 
             // Set the input-bits dashboard card immediately when EC starts
             if (ppInputMetric) ppInputMetric.textContent = state.workingKeyA.length;
+
+            // Recorded so the Stage 7 audit report names the protocol actually used
+            state.errorCorrectionProtocol = useLDPC
+                ? 'LDPC (Syndrome Decoding / Belief Propagation)'
+                : 'Cascade (Binary Bisection)';
 
             if (useLDPC) {
                 runLDPCAnimation(logEc, btnPa);
@@ -59,7 +71,7 @@ export function initStage6() {
 
     if (btnPa) {
         btnPa.addEventListener('click', () => {
-            if (state.workingKeyA.length === 0) return;
+            if (state.protocolAborted || state.workingKeyA.length === 0) return;
 
             btnPa.disabled = true;
             btnPa.textContent = 'Processing...';
@@ -628,7 +640,11 @@ class CascadeProtocolHandler {
                     return `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin:2px;border:1px solid ${isCorrected ? '#2e7d32' : '#ccc'};border-radius:3px;background:${isCorrected ? 'rgba(46,125,50,0.15)' : '#fff'};color:${isCorrected ? '#2e7d32' : '#333'};font-family:monospace;font-size:0.75rem;font-weight:${isCorrected ? '800' : '400'};">${bit}</span>`;
                 }).join('');
 
-                const keyMatch = this.referenceKeyA.join('') === ev.snapshot.join('');
+                // Reconciliation shortens the key by the number of bits whose
+                // parities were published, so compare only over the retained
+                // prefix — otherwise the lengths differ and this is always false.
+                const retainedA = this.referenceKeyA.slice(0, ev.snapshot.length).join('');
+                const keyMatch = retainedA === ev.snapshot.join('');
                 bisectHtml = `<div style="margin:25px 0;padding:15px;border:2px solid var(--safe-green);border-radius:6px;background:rgba(46,125,50,0.02);text-align:center;">
                     <strong style="color:var(--safe-green);text-transform:uppercase;font-size:1rem;letter-spacing:1px;display:block;margin-bottom:5px;">✓ Final Reconciled Key</strong>
                     <small style="color:var(--text-muted);font-size:0.7rem;display:block;margin-bottom:12px;">Green = corrected by Cascade (${ev.totalErrors} bits) — ${keyMatch ? 'Keys fully match Alice ✓' : 'Note: high noise may leave residual errors'}</small>
@@ -945,11 +961,15 @@ class LDPCAnimator {
         }
 
         // ── Compute ground-truth syndromes (parity, mod 2) ──────────────
+        // A check node is satisfied iff the parity of the ERROR pattern over its
+        // neighbourhood is even. Alice publishes s = H·x, Bob computes H·y, and
+        // the decoder works on H·e = H·x ⊕ H·y where e = x ⊕ y. Using Alice's
+        // bits alone carries no information about where the errors are.
         for (const cn of this.CN) {
-            const connectedVN = this.edges
+            const connectedErr = this.edges
                 .filter(e => e.c === cn.idx)
-                .map(e => bitsA[e.v]);
-            cn.syndrome = connectedVN.reduce((acc, b) => (acc + b) % 2, 0);
+                .map(e => bitsA[e.v] ^ bitsB[e.v]);
+            cn.syndrome = connectedErr.reduce((acc, b) => acc ^ b, 0);
         }
 
         // ── Build H matrix display ────────────────────────────────────────
@@ -1439,12 +1459,20 @@ class LDPCAnimator {
         }
         state.errorsCorrected = corrected;
 
-        // LDPC Direct Disclosure Rule: 
-        // Only count check nodes connected to EXACTLY 1 bit (direct reveal)
-        const syndromeLeak = this.CN.filter(cn => {
-            const degree = this.edges.filter(e => e.c === cn.idx).length;
-            return degree === 1;
-        }).length;
+        // LDPC Direct Disclosure Rule:
+        // Alice publishes one syndrome bit per parity-check row, and the syndrome
+        // is sent over the public channel, so those bits must be hashed away.
+        // The on-screen Tanner graph is a fixed-size sample of the code, so we
+        // apply its code rate (rows / columns) to the real key length. Counting
+        // only degree-1 rows — as this did before — always yielded zero, because
+        // every check node in this graph has degree 5-6.
+        const nRows = this.CN.length;
+        const nCols = this.VN.length || 1;
+        const workingLen = state.workingKeyB.length;
+        const syndromeLeak = Math.min(
+            Math.max(0, workingLen - 1),
+            Math.max(nRows, Math.round((nRows / nCols) * workingLen))
+        );
         state.bitsRemovedInEC = syndromeLeak;
 
         const finalLen = Math.max(0, state.workingKeyB.length - syndromeLeak);
@@ -1508,7 +1536,9 @@ function startPrivacyAmplificationAnimation(onComplete) {
     // We add a safety margin (e.g. 1.2x) to account for finite key effects and LDPC residue
     const securityParameter = 1.15;
     const leakageFactor = Math.min(0.9, hq * securityParameter);
-    const m = Math.max(8, Math.floor(n * (1 - leakageFactor)));
+    // Privacy amplification is a hash onto a SHORTER string: it can never return
+    // more bits than it was given, so clamp to n rather than flooring at 8.
+    const m = Math.max(1, Math.min(n, Math.floor(n * (1 - leakageFactor))));
 
     state.leakage = (leakageFactor * 100).toFixed(1);
     state.bitsRemovedInPA = n - m;
